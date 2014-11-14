@@ -23,7 +23,9 @@ const String SHARED_PATH = "E:\\Dropbox\\Computer Vision Topic - Background Mask
 //const int IMAGE_COL = 504;
 
 const int DEFAULT_WIDTH = 896;
+const int NUM_COLS = DEFAULT_WIDTH;
 const int DEFAULT_HEIGHT = 504;
+const int NUM_ROWS = DEFAULT_HEIGHT;
 const int MIN_DISPARITY = -80;
 const int MAX_DISPARITY = 40;
 const int STEP_DISPARITY = 2;
@@ -45,12 +47,12 @@ const int NUM_OF_CYCLES = 2;
 
 const bool SHOW_DISPARITY_MAP = true;
 const bool STORE_DISPARITY_MAP = true;
-const bool SHOW_SEGMENTED_IMAGE = true;
-const bool STORE_SEGMENTED_IMAGE = true;
+const bool SHOW_SEGMENTED_IMAGE = false;
+const bool STORE_SEGMENTED_IMAGE = false;
 const bool STORE_MATCHING_COST = false;
 
-void graphCut(Mat *, int[], Mat &, const Mat &);
-void matchingTwoView(const Mat &, const Mat &, int[], Mat *);
+void graphCut(float *[MAX_LABEL], int[], uchar[][NUM_COLS], const Mat &);
+void matchingTwoView(const Mat &, const Mat &, int[], float *[MAX_LABEL]);
 void segmentation(const Mat &, Mat &);
 
 void loadImages(const string &, const string &, Mat &, Mat &);
@@ -68,6 +70,8 @@ int main(int argc, char** argv) {
 
 		mkdir(PATH_TO_DISPARITY_MAP_STORAGE.c_str());
 
+		float * matchCost[MAX_LABEL];
+
 		Mat leftImage, rightImage;
 		loadImages(LEFT_IMAGE_NAME, RIGHT_IMAGE_NAME, leftImage, rightImage);
 		//Segmentation
@@ -80,45 +84,54 @@ int main(int argc, char** argv) {
 		if (STORE_SEGMENTED_IMAGE) {
 			storeMat(segmentedImage, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-segmented.jpg", NULL);
 		}
-		//Convert to YUV images for matching
-		//cvtColor(leftImage, leftImage, CV_BGR2GRAY);
-		//cvtColor(rightImage, rightImage, CV_BGR2GRAY);
-		////Matching
-		//Mat matchingCostMaps[MAX_LABEL];
-		//int label2Disparity[MAX_LABEL];
-		//for (int id = 0, disparity = MIN_DISPARITY; id < MAX_LABEL; ++id, disparity += 2){
-		//	label2Disparity[id] = disparity;
-		//}
-		//matchingTwoView(leftImage, rightImage, label2Disparity, matchingCostMaps);
-		////Store matching results
-		/*if (STORE_MATCHING_COST) {
+		//Convert to GRAY images for matching
+		cvtColor(leftImage, leftImage, CV_BGR2GRAY);
+		cvtColor(rightImage, rightImage, CV_BGR2GRAY);
+		//Matching
+		int label2Disparity[MAX_LABEL];
+		for (int id = 0, disparity = MIN_DISPARITY; id < MAX_LABEL; ++id, disparity += 2){
+			label2Disparity[id] = disparity;
+		}
+		matchingTwoView(leftImage, rightImage, label2Disparity, matchCost);
+		//Store matching results
+		if (STORE_MATCHING_COST) {
 			cout << "Storing: " << endl;
-			for (int idLabel = 0; idLabel < MAX_LABEL; ++idLabel){
 			vector<int> compression_params;
 			compression_params.push_back(CV_IMWRITE_JPEG_QUALITY);
 			compression_params.push_back(100);
-			cout << ".";
-			storeMat(matchingCostMaps[idLabel], PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-" + to_string(idLabel) + ".jpg", &compression_params);
+			for (int idLabel = 0; idLabel < MAX_LABEL; ++idLabel){
+				cout << ".";
+				Mat temp = Mat(leftImage.rows, leftImage.cols, CV_32FC1, matchCost[idLabel]);
+				storeMat(temp, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-" + to_string(idLabel) + ".jpg", &compression_params);
 			}
 			cout << endl;
-			}*/
-		////Graph Cut
-		//Mat disparityMap = Mat(leftImage.rows, leftImage.cols, CV_8UC1);
-		//graphCut(matchingCostMaps, label2Disparity, disparityMap, segmentedImage);
-		////NORMALIZED IMAGE
-		//for (int idRow = 0; idRow < disparityMap.rows; ++idRow){
-		//	for (int idCol = 0; idCol < disparityMap.cols; ++idCol){
-		//		disparityMap.at<uchar>(idRow, idCol) *= (256 / MAX_LABEL);
-		//	}
-		//}
-		////Store & show disparity Map
-		//if (SHOW_DISPARITY_MAP) {
-		//  imshow("Disparity map", disparityMap);
-		//  waitKey(0);
-		//}
-		//if (STORE_DISPARITY_MAP) {
-		//	storeMat(disparityMap, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-cut.jpg", NULL);
-		//}
+		}
+		//Graph Cut
+		uchar disparityMap[NUM_ROWS][NUM_COLS];
+		graphCut(matchCost, label2Disparity, disparityMap, segmentedImage);
+		//NORMALIZED IMAGE
+		for (int idRow = 0; idRow < leftImage.rows; ++idRow){
+			for (int idCol = 0; idCol < leftImage.cols; ++idCol){
+				disparityMap[idRow][idCol] *= (256 / MAX_LABEL);
+			}
+		}
+		//Store & show disparity Map
+		if (STORE_DISPARITY_MAP) {
+			Mat disparityMat = Mat(leftImage.rows, leftImage.cols, CV_8UC1, disparityMap);
+			storeMat(disparityMat, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-cut.jpg", NULL);
+		}
+		if (SHOW_DISPARITY_MAP) {
+			Mat disparityMat = Mat(leftImage.rows, leftImage.cols, CV_8UC1, disparityMap);
+			imshow("Disparity map", disparityMat);
+			waitKey(0);
+		}
+
+		for (int idLabel = 0; idLabel < MAX_LABEL; ++idLabel) {
+			if (matchCost[idLabel] != NULL) {
+				free(matchCost[idLabel]); 
+				matchCost[idLabel] = NULL;
+			}
+		}
 	}
 
 	return 0;
@@ -141,6 +154,7 @@ void loadImages(const string & LEFT_IMAGE_NAME, const string & RIGHT_IMAGE_NAME,
 	}
 	resize(rightRGBImage, rightImage, size);
 }
+
 void storeMat(const Mat & image, const string & FILE_NAME, vector<int> * compression_params) {
 	if (compression_params == NULL) {
 		compression_params = new vector<int>;
@@ -152,21 +166,19 @@ void storeMat(const Mat & image, const string & FILE_NAME, vector<int> * compres
 	}
 }
 
-void graphCut(Mat * matchingCostMaps, int label2Disparity[], Mat & disparityMap, const Mat & segmentedMat){
+void graphCut(float * matchCost[MAX_LABEL], int label2Disparity[], uchar disparityMap[][NUM_COLS], const Mat & segmentedMat){
 	cout << "Graph cut: " << endl;
 	clock_t start = clock();
-	for (int idRow = 0; idRow < disparityMap.rows; ++idRow){
-		for (int idCol = 0; idCol < disparityMap.cols; ++idCol){
-			for (int label = 0; label < MAX_LABEL; ++label){
-				disparityMap.at<uchar>(idRow, idCol) = 0;
-			}
+	for (int idRow = 0; idRow < segmentedMat.rows; ++idRow) {
+		for (int idCol = 0; idCol < segmentedMat.cols; ++idCol) {
+			disparityMap[idRow][idCol] = 0;
 		}
 	}
 
 	//init matrix storage of nodes for graph cut;
-	Graph::node_id * * node = new Graph::node_id *[disparityMap.rows];
-	for (int idRow = 0; idRow < disparityMap.rows; ++idRow){
-		node[idRow] = new Graph::node_id[disparityMap.cols];
+	Graph::node_id * * node = new Graph::node_id *[NUM_COLS];
+	for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
+		node[idRow] = new Graph::node_id[NUM_COLS];
 	}
 	//Graph cut
 	for (int idCycle = 0; idCycle < NUM_OF_CYCLES; ++idCycle){
@@ -174,21 +186,21 @@ void graphCut(Mat * matchingCostMaps, int label2Disparity[], Mat & disparityMap,
 		for (int idLabel = 0; idLabel < MAX_LABEL; ++idLabel){
 			cout << ".";
 			Graph * graph = new Graph();
-			for (int idRow = 0; idRow < disparityMap.rows; ++idRow){
-				for (int idCol = 0; idCol < disparityMap.cols; ++idCol){
+			for (int pp = 0, idRow = 0; idRow < segmentedMat.rows; ++idRow){
+				for (int idCol = 0; idCol < segmentedMat.cols; ++idCol, ++pp){
 					node[idRow][idCol] = graph->add_node();
 					//Init node
-					int curLabel = disparityMap.at<uchar>(idRow, idCol);
+					int curLabel = disparityMap[idRow][idCol];
 					if (curLabel == idLabel){
-						graph->set_tweights(node[idRow][idCol], matchingCostMaps[idLabel].at<float>(idRow, idCol), CONST_INF);
+						graph->set_tweights(node[idRow][idCol], matchCost[idLabel][pp], CONST_INF);
 					}
 					else {
-						graph->set_tweights(node[idRow][idCol], matchingCostMaps[idLabel].at<float>(idRow, idCol), matchingCostMaps[curLabel].at<float>(idRow, idCol));
+						graph->set_tweights(node[idRow][idCol], matchCost[idLabel][pp], matchCost[curLabel][pp]);
 					}
 					float costCurTemp = SMOOTH_EFFICIENT * abs(label2Disparity[curLabel] - label2Disparity[idLabel]);
 					//Init edge to up node						
 					if (idRow > 0){
-						int upLabel = disparityMap.at<uchar>(idRow - 1, idCol);
+						int upLabel = disparityMap[idRow - 1][idCol];
 						float costUpTemp = SMOOTH_EFFICIENT * abs(label2Disparity[upLabel] - label2Disparity[idLabel]);
 						float costUpToCurTemp = SMOOTH_EFFICIENT * abs(label2Disparity[upLabel] - label2Disparity[curLabel]);
 						//Color segment
@@ -209,7 +221,7 @@ void graphCut(Mat * matchingCostMaps, int label2Disparity[], Mat & disparityMap,
 					}
 					//Init edge to left node
 					if (idCol > 0){
-						int leftLabel = disparityMap.at<uchar>(idRow, idCol - 1);
+						int leftLabel = disparityMap[idRow][idCol - 1];
 						float costLeftTemp = SMOOTH_EFFICIENT * abs(label2Disparity[leftLabel] - label2Disparity[idLabel]);
 						float costLeftToCurTemp = SMOOTH_EFFICIENT * abs(label2Disparity[leftLabel] - label2Disparity[curLabel]);
 						//Color segment
@@ -233,10 +245,10 @@ void graphCut(Mat * matchingCostMaps, int label2Disparity[], Mat & disparityMap,
 
 			Graph::flowtype flow = graph->maxflow();
 
-			for (int idRow = 0; idRow < disparityMap.rows; ++idRow){
-				for (int idCol = 0; idCol < disparityMap.cols; ++idCol){
+			for (int idRow = 0; idRow < segmentedMat.rows; ++idRow){
+				for (int idCol = 0; idCol < segmentedMat.cols; ++idCol){
 					if (graph->what_segment(node[idRow][idCol]) != Graph::SOURCE){
-						disparityMap.at<uchar>(idRow, idCol) = (uchar)idLabel;
+						disparityMap[idRow][idCol] = (uchar)idLabel;
 					}
 				}
 			}
@@ -245,7 +257,7 @@ void graphCut(Mat * matchingCostMaps, int label2Disparity[], Mat & disparityMap,
 		}
 	}
 	//release matrix storage for graph cut
-	for (int idRow = 0; idRow < disparityMap.rows; ++idRow){
+	for (int idRow = 0; idRow < segmentedMat.rows; ++idRow){
 		delete[] node[idRow];
 	}
 	delete[] node;
@@ -254,7 +266,7 @@ void graphCut(Mat * matchingCostMaps, int label2Disparity[], Mat & disparityMap,
 	cout << " End after " << ((double)(finish - start) / CLOCKS_PER_SEC) << " sec" << endl;
 }
 
-void matchingTwoView(const Mat & leftImage, const Mat & rightImage, int disparityList[], Mat * matchingCostMaps){
+void matchingTwoView(const Mat & leftImage, const Mat & rightImage, int disparityList[], float * matchCost[MAX_LABEL]){
 	cout << "Matching Two Views: ";
 	clock_t start = clock();
 
@@ -264,15 +276,15 @@ void matchingTwoView(const Mat & leftImage, const Mat & rightImage, int disparit
 	for (int label = 0; label < MAX_LABEL; ++label){
 		int idDisparity = disparityList[label];
 		//cout << "idDisparity = " << idDisparity << endl;
-		matchingCostMaps[label] = Mat(leftImage.rows, leftImage.cols, CV_32FC1);
-		for (int idCol = 0; idCol < leftImage.cols; ++idCol){
-			int targetCol = idCol - idDisparity;
-			for (int idRow = 0; idRow < leftImage.rows; ++idRow){
+		matchCost[label] = (float *)malloc(DEFAULT_WIDTH * DEFAULT_HEIGHT * sizeof(float));
+		for (int pp = 0, idRow = 0; idRow < leftImage.rows; ++idRow){
+			for (int idCol = 0; idCol < leftImage.cols; ++idCol, ++pp){
+				int targetCol = idCol - idDisparity;
 				if (targetCol >= 0 && targetCol < leftImage.cols){
 					//block matching
 					int blockSize = 0;
 					float temporary = 0;
-					matchingCostMaps[label].at<float>(idRow, idCol) = 0;
+					matchCost[label][pp] = 0;
 					for (int idRow2 = -1; idRow2 <= 1; ++idRow2){
 						for (int idCol2 = -1; idCol2 <= 1; ++idCol2){
 							if (idRow + idRow2 >= 0 && idRow + idRow2 < leftImage.rows && idCol + idCol2 >= 0 && idCol + idCol2 < leftImage.cols){
@@ -284,10 +296,10 @@ void matchingTwoView(const Mat & leftImage, const Mat & rightImage, int disparit
 							}
 						}
 					}
-					matchingCostMaps[label].at<float>(idRow, idCol) = ((float)temporary) / blockSize;
+					matchCost[label][pp] = ((float)temporary) / blockSize;
 				}
 				else {
-					matchingCostMaps[label].at<float>(idRow, idCol) = 255;
+					matchCost[label][pp] = 255.0f;
 				}
 			}
 		}
