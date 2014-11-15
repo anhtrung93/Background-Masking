@@ -17,10 +17,8 @@
 using namespace cv;
 using namespace std;
 
-const String SHARED_PATH = "E:\\Dropbox\\Computer Vision Topic - Background Masking\\Images data\\JPEGs\\";
-
-//const int IMAGE_ROW = 896;
-//const int IMAGE_COL = 504;
+const String SHARED_PATH = "E:\\Dropbox\\Computer Vision Topic - Background Masking\\Images data\\Rectified image\\";
+//const String SHARED_PATH = "E:\\Dropbox\\Computer Vision Topic - Background Masking\\Images data\\JPEGs\\";
 
 const int DEFAULT_WIDTH = 896;
 const int NUM_COLS = DEFAULT_WIDTH;
@@ -45,7 +43,9 @@ const int MAX_PYR_LEVEL = 3;
 const float COLOR_THRESHOLD = 5;
 const int NUM_OF_CYCLES = 2;
 
-const bool SHOW_DISPARITY_MAP = false;
+const bool USE_SEGMENT = true;
+
+const bool SHOW_DISPARITY_MAP = true;
 const bool STORE_DISPARITY_MAP = true;
 const bool SHOW_SEGMENTED_IMAGE = false;
 const bool STORE_SEGMENTED_IMAGE = true;
@@ -60,8 +60,8 @@ void storeMat(const Mat &, const string &, vector<int> *);
 
 
 int main(int argc, char** argv) {
-	const int NUM_OF_IMAGE = 5;// 16;
-	const String images[NUM_OF_IMAGE] = { "63", "66", "78", "92", "96" }; //"59", "65", "99", "73", "71", "66", "68", "70", "74", "75", "77", "78", "84", "85", "92", "96"
+	const int NUM_OF_IMAGE = 1;// 16;
+	const String images[NUM_OF_IMAGE] = { "59" };//"59", "65", "99", "73", "71", "66", "68", "70", "74", "75", "77", "78", "84", "85", "92", "96"
 	for (int idImage = 0; idImage < NUM_OF_IMAGE; ++idImage){
 		const String IMAGE_NAME = "DSCF74" + images[idImage]; //"DSCF7457";//"DSCF1910";//"DSCF1793";//"DSCF0253";
 		const String LEFT_IMAGE_NAME = SHARED_PATH + IMAGE_NAME + "-L.jpg";
@@ -77,15 +77,21 @@ int main(int argc, char** argv) {
 		loadImages(LEFT_IMAGE_NAME, RIGHT_IMAGE_NAME, leftImage, rightImage);
 		//Segmentation
 		Mat segmentedRightImage, segmentedLeftImage;
-		segmentation(rightImage, segmentedRightImage);
-		segmentation(leftImage, segmentedLeftImage);
-		/*if (SHOW_SEGMENTED_IMAGE) {
-			imshow("Segmented Image", segmentedImage);
-			waitKey();
+		if (USE_SEGMENT) {
+			segmentation(rightImage, segmentedRightImage);
+			segmentation(leftImage, segmentedLeftImage);
+
+			if (SHOW_SEGMENTED_IMAGE) {
+				imshow("Segmented Left Image", segmentedLeftImage);
+				imshow("Segmented Right Image", segmentedRightImage);
+				waitKey();
+			}
+			if (STORE_SEGMENTED_IMAGE) {
+				storeMat(segmentedLeftImage, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-segmented-L.jpg", NULL);
+				storeMat(segmentedRightImage, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-segmented-R.jpg", NULL);
+			}
 		}
-		if (STORE_SEGMENTED_IMAGE) {
-			storeMat(segmentedImage, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-segmented.jpg", NULL);
-		}*/
+		
 		//Convert to GRAY images for matching
 		cvtColor(leftImage, leftImage, CV_BGR2GRAY);
 		cvtColor(rightImage, rightImage, CV_BGR2GRAY);
@@ -97,24 +103,26 @@ int main(int argc, char** argv) {
 		matchingTwoView(rightImage, leftImage, 1, label2Disparity, matchRightCost);
 		matchingTwoView(leftImage, rightImage, -1, label2Disparity, matchLeftCost);
 		//Store matching results
-		/*if (STORE_MATCHING_COST) {
+		if (STORE_MATCHING_COST) {
 			cout << "Storing: " << endl;
 			vector<int> compression_params;
 			compression_params.push_back(CV_IMWRITE_JPEG_QUALITY);
 			compression_params.push_back(100);
 			for (int idLabel = 0; idLabel < MAX_LABEL; ++idLabel){
 				cout << ".";
-				Mat temp = Mat(leftImage.rows, leftImage.cols, CV_32FC1, matchCost[idLabel]);
-				storeMat(temp, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-" + to_string(idLabel) + ".jpg", &compression_params);
+				Mat temp = Mat(leftImage.rows, leftImage.cols, CV_32FC1, matchLeftCost[idLabel]);
+				storeMat(temp, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-L-" + to_string(idLabel) + ".jpg", &compression_params);
+				Mat temp2 = Mat(leftImage.rows, leftImage.cols, CV_32FC1, matchRightCost[idLabel]);
+				storeMat(temp2, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-R-" + to_string(idLabel) + ".jpg", &compression_params);
 			}
 			cout << endl;
-		}*/
+		}
 		//Graph Cut
 		uchar disparityRightMap[NUM_ROWS][NUM_COLS];
 		uchar disparityLeftMap[NUM_ROWS][NUM_COLS];
 		graphCut(matchRightCost, label2Disparity, disparityRightMap, segmentedRightImage);
 		graphCut(matchLeftCost, label2Disparity, disparityLeftMap, segmentedLeftImage);
-		//NORMALIZED IMAGE
+		//Cross checking
 		for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
 			for (int idCol = 0; idCol < NUM_COLS; ++idCol){
 				disparityLeftMap[idRow][idCol] = label2Disparity[disparityLeftMap[idRow][idCol]];
@@ -236,7 +244,7 @@ void graphCut(float * matchCost[MAX_LABEL], int label2Disparity[], uchar dispari
 						float costUpTemp = SMOOTH_EFFICIENT * abs(label2Disparity[upLabel] - label2Disparity[idLabel]);
 						float costUpToCurTemp = SMOOTH_EFFICIENT * abs(label2Disparity[upLabel] - label2Disparity[curLabel]);
 						//Color segment
-						if (segmentedMat.at<Vec3b>(idRow, idCol) != segmentedMat.at<Vec3b>(idRow - 1, idCol)){
+						if (USE_SEGMENT && segmentedMat.at<Vec3b>(idRow, idCol) != segmentedMat.at<Vec3b>(idRow - 1, idCol)){
 							costUpTemp *= SMOOTH_EFFICIENT2;
 							costCurTemp *= SMOOTH_EFFICIENT2;
 							costUpToCurTemp *= SMOOTH_EFFICIENT2;
@@ -257,7 +265,7 @@ void graphCut(float * matchCost[MAX_LABEL], int label2Disparity[], uchar dispari
 						float costLeftTemp = SMOOTH_EFFICIENT * abs(label2Disparity[leftLabel] - label2Disparity[idLabel]);
 						float costLeftToCurTemp = SMOOTH_EFFICIENT * abs(label2Disparity[leftLabel] - label2Disparity[curLabel]);
 						//Color segment
-						if (segmentedMat.at<Vec3b>(idRow, idCol) != segmentedMat.at<Vec3b>(idRow, idCol - 1)){
+						if (USE_SEGMENT && segmentedMat.at<Vec3b>(idRow, idCol) != segmentedMat.at<Vec3b>(idRow, idCol - 1)){
 							costLeftTemp *= SMOOTH_EFFICIENT2;
 							costCurTemp *= SMOOTH_EFFICIENT2;
 							costLeftToCurTemp *= SMOOTH_EFFICIENT2;
