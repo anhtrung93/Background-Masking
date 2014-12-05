@@ -1,4 +1,4 @@
-#include <opencv2/core/core.hpp>
+﻿#include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -17,8 +17,8 @@
 using namespace cv;
 using namespace std;
 
-const String SHARED_PATH = "E:\\Dropbox\\Computer Vision Topic - Background Masking\\Images data\\Rectified image\\";
-//const String SHARED_PATH = "E:\\Dropbox\\Computer Vision Topic - Background Masking\\Images data\\JPEGs\\";
+//const String SHARED_PATH = "E:\\Dropbox\\Computer Vision Topic - Background Masking\\Images data\\Rectified image\\";
+const String SHARED_PATH = "E:\\Dropbox\\Computer Vision Topic - Background Masking\\Images data\\JPEGs\\";
 
 const int DEFAULT_WIDTH = 896;
 const int NUM_COLS = DEFAULT_WIDTH;
@@ -42,6 +42,8 @@ const double COLOR_RAD = 20.0;
 const int MAX_PYR_LEVEL = 3;
 const float COLOR_THRESHOLD = 5;
 const int NUM_OF_CYCLES = 2;
+const int K_SIZE = 3;
+
 
 const bool USE_SEGMENT = true;
 
@@ -61,7 +63,7 @@ void storeMat(const Mat &, const string &, vector<int> *);
 
 int main(int argc, char** argv) {
 	const int NUM_OF_IMAGE = 1;// 16;
-	const String images[NUM_OF_IMAGE] = { "59" };//"59", "65", "99", "73", "71", "66", "68", "70", "74", "75", "77", "78", "84", "85", "92", "96"
+	const String images[NUM_OF_IMAGE] = { "92" };//"59", "65", "99", "73", "71", "66", "68", "70", "74", "75", "77", "78", "84", "85", "92", "96"
 	for (int idImage = 0; idImage < NUM_OF_IMAGE; ++idImage){
 		const String IMAGE_NAME = "DSCF74" + images[idImage]; //"DSCF7457";//"DSCF1910";//"DSCF1793";//"DSCF0253";
 		const String LEFT_IMAGE_NAME = SHARED_PATH + IMAGE_NAME + "-L.jpg";
@@ -75,7 +77,7 @@ int main(int argc, char** argv) {
 
 		Mat leftImage, rightImage;
 		loadImages(LEFT_IMAGE_NAME, RIGHT_IMAGE_NAME, leftImage, rightImage);
-		//Segmentation
+		//Segmentation (required RGB images)
 		Mat segmentedRightImage, segmentedLeftImage;
 		if (USE_SEGMENT) {
 			segmentation(rightImage, segmentedRightImage);
@@ -150,9 +152,9 @@ int main(int argc, char** argv) {
 		//Store & show disparity Map
 		if (STORE_DISPARITY_MAP) {
 			Mat disparityRightMat = Mat(leftImage.rows, leftImage.cols, CV_8UC1, disparityRightMap);
-			storeMat(disparityRightMat, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-Rcut.jpg", NULL);
+			storeMat(disparityRightMat, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-cutR.jpg", NULL);
 			Mat disparityLeftMat = Mat(leftImage.rows, leftImage.cols, CV_8UC1, disparityLeftMap);
-			storeMat(disparityLeftMat, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-Lcut.jpg", NULL);
+			storeMat(disparityLeftMat, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-cutL.jpg", NULL);
 		}
 		if (SHOW_DISPARITY_MAP) {
 			Mat disparityRightMat = Mat(leftImage.rows, leftImage.cols, CV_8UC1, disparityRightMap);
@@ -351,17 +353,21 @@ void segmentation(const Mat & img, Mat & res) {
 	cout << "Segmentation: " << endl;
 	clock_t start = clock();
 	pyrMeanShiftFiltering(img, res, SPATIAL_RAD, COLOR_RAD, MAX_PYR_LEVEL);
-	//floodFillPostprocess(res, Scalar::all(COLOR_THRESHOLD));
+	//TODO
 	RNG rng = theRNG();
 	Mat mask(img.rows + 2, img.cols + 2, CV_8UC1, Scalar::all(0));
+
 	for (int y = 0; y < img.rows; y++) {
 		for (int x = 0; x < img.cols; x++) {
-			if (mask.at<uchar>(y + 1, x + 1) == 0)	{
+			if (mask.at<uchar>(y + 1, x + 1) == 0) {
 				Scalar newVal(rng(256), rng(256), rng(256));
 				floodFill(res, mask, Point(x, y), newVal, 0, Scalar::all(COLOR_THRESHOLD), Scalar::all(COLOR_THRESHOLD));
 			}
 		}
 	}
+
+	medianBlur(res, res, K_SIZE);
+
 	clock_t finish = clock();
 	cout << " End after " << ((double)(finish - start) / CLOCKS_PER_SEC) << " sec" << endl;
 }
