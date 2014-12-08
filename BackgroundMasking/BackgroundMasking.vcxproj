@@ -14,10 +14,12 @@
     <ClCompile Include="graph.cpp" />
     <ClCompile Include="maxflow.cpp" />
     <ClCompile Include="Source.cpp" />
+    <ClCompile Include="DisjointSetInt.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="block.h" />
     <ClInclude Include="graph.h" />
+    <ClInclude Include="DisjointSetInt.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{48C380F6-B937-431A-9998-BDC351A0334D}</ProjectGuid>
