@@ -14,301 +14,398 @@
 #include <time.h>
 #include "graph.h"
 #include "DisjointSetInt.h"
-
 #include <iostream>
 
 #define MIN(a, b) (((a) < (b)?(a):(b)))
 #define MAX(a, b) (((a) > (b)?(a):(b)))
+#define btoa(x) ((x)?"true":"false")
 
 using namespace cv;
 using namespace std;
 
-//const String SHARED_PATH = "E:\\Dropbox\\Computer Vision Topic - Background Masking\\Images data\\Rectified image\\";
-const String SHARED_PATH = "E:\\Dropbox\\Computer Vision Topic - Background Masking\\Images data\\JPEGs\\";
-
-const int DEFAULT_WIDTH = 896;
-const int NUM_COLS = DEFAULT_WIDTH;
-const int DEFAULT_HEIGHT = 504;
-const int NUM_ROWS = DEFAULT_HEIGHT;
-const int MIN_DISPARITY = -40;
-const int MAX_DISPARITY = 80;
-const int STEP_DISPARITY = 2;
-const int MAX_LABEL = ((MAX_DISPARITY - MIN_DISPARITY) / STEP_DISPARITY) + 1;
-
-//const String IMAGE_NAME = "DSCF7463";//"DSCF7457";//"DSCF1910";//"DSCF1793";//"DSCF0253";
-//const String LEFT_IMAGE_NAME = SHARED_PATH + IMAGE_NAME + "-L.jpg";
-//const String RIGHT_IMAGE_NAME = SHARED_PATH + IMAGE_NAME + "-R.jpg";
-//const String PATH_TO_DISPARITY_MAP_STORAGE = "E:\\Temp\\" + IMAGE_NAME + "\\";
+int DEFAULT_WIDTH = 0;
+int NUM_COLS = DEFAULT_WIDTH;
+int DEFAULT_HEIGHT = 0;
+int NUM_ROWS = DEFAULT_HEIGHT;
+int MIN_DISPARITY = 0;
+int MAX_DISPARITY = 0;
+int STEP_DISPARITY = 2;
+int MAX_LABEL = ((MAX_DISPARITY - MIN_DISPARITY) / STEP_DISPARITY) + 1;
 
 const int CONST_INF = INT_MAX;
-const float SMOOTH_EFFICIENT = 2.0f;
-const float SMOOTH_EFFICIENT2 = 0.3f;
+float SMOOTH_EFFICIENT = 0.0f;
+float SMOOTH_EFFICIENT2 = 0.0f;
 
-const double SPATIAL_RAD = 10.0;
-const double COLOR_RAD = 10.0;
-const int MAX_PYR_LEVEL = 3;
-const float LOWER_COLOR_THRESHOLD = 3.0f;
-const float UPPER_COLOR_THRESHOLD = 200.0f;
-const int MIN_SEGMENT_AREA = 30;
-const int NUM_OF_CYCLES = 2;
-const int K_SIZE = 3;
+double SPATIAL_RAD = 10.0;
+double COLOR_RAD = 10.0;
+int MAX_PYR_LEVEL = 3;
+float LOWER_COLOR_THRESHOLD = 0.0f;
+float UPPER_COLOR_THRESHOLD = 0.0f;
+int MIN_SEGMENT_AREA = 0;
+int NUM_OF_CYCLES = 2;
+int BLOCK_SIZE = 1;
 
-const bool USE_SEGMENT = true;
+bool USE_SEGMENT = true;
 
-const bool SHOW_DISPARITY_MAP = false;
-const bool STORE_DISPARITY_MAP = true;
-const bool SHOW_SEGMENTED_IMAGE = false;
-const bool STORE_SEGMENTED_IMAGE = true;
-const bool STORE_MATCHING_COST = false;
+bool SHOW_DISPARITY_MAP = false;
+bool STORE_DISPARITY_MAP = false;
+bool SHOW_SEGMENTED_IMAGE = false;
+bool STORE_SEGMENTED_IMAGE = false;
+bool STORE_MATCHING_COST = false;
 //92//59
-const int LOW_THRES = 0;//40
-const int HIGH_THRES = 40;//100
+int LOW_THRES = 0;//40
+int HIGH_THRES = 0;//100
+
+string SHARED_PATH;
+string IMAGE_NAME;
+string BACKGROUND_NAME;
+
+string LEFT_IMAGE;
+string RIGHT_IMAGE;
+string LEFT_BACKGROUND;
+string RIGHT_BACKGROUND;
+string STORE_PATH;
 
 void segmentation(const Mat &, Mat &, int * *, int &);
-void matchingTwoView(const Mat &, const Mat &, const int, int[], float *[MAX_LABEL]);
-void graphCut(float *[MAX_LABEL], int[], uchar[][NUM_COLS], int * *);
-void planeFitting(uchar [][NUM_COLS], int * * segment, int, uchar * * );
-void crossChecking(uchar[][NUM_COLS], uchar[][NUM_COLS], uchar * *, uchar * *);
+void matchingTwoView(const Mat &, const Mat &, const int, int[], float * *);
+void graphCut(float * *, int[], uchar * *, int * *);
+void planeFitting(uchar * *, int * * segment, int, uchar * *);
+void crossChecking(uchar * *, uchar * *, uchar * *, uchar * *);
 
+void readConfigFile(const string &);
 void loadImages(const string &, const string &, Mat &, Mat &);
 void storeMat(const Mat &, const string &, vector<int> *);
 
+template<class T>
+void release2DArray(T * *, int, int);
+template<class T>
+T * * malloc2DArray(int, int);
+
+const string CONFIG_FILE = "E:\\Workspace\\OpenCV_ws\\Background-Masking\\BackgroundMasking\\ConfigFile.txt";
+
 int main(int argc, char** argv) {
-	const int NUM_OF_IMAGE = 1;// 16;
-	const String images[NUM_OF_IMAGE] = { "92" };//"65", "99", "73", "71", "66", "68", "70", "74", "75", "77", "78", "85", "96", "92", "59"};
-	for (int idImage = 0; idImage < NUM_OF_IMAGE; ++idImage){
-		const String IMAGE_NAME = "DSCF74" + images[idImage]; //"DSCF7457";//"DSCF1910";//"DSCF1793";//"DSCF0253";
-		const String LEFT_IMAGE_NAME = SHARED_PATH + IMAGE_NAME + "-L.jpg";
-		const String RIGHT_IMAGE_NAME = SHARED_PATH + IMAGE_NAME + "-R.jpg";
+	readConfigFile(CONFIG_FILE);
 
-		const String BACKGROUND_NAME = "DSCF7482";
-		const String LEFT_BACKGROUND_NAME = SHARED_PATH + BACKGROUND_NAME + "-L.JPG";
-		const String RIGHT_BACKGROUND_NAME = SHARED_PATH + BACKGROUND_NAME + "-R.JPG";
+	mkdir(STORE_PATH.c_str());
 
-		const String PATH_TO_DISPARITY_MAP_STORAGE = "E:\\Temp\\" + IMAGE_NAME + "\\";
+	//additional storage, init
+	float * * matchRightCost = malloc2DArray<float>(MAX_LABEL, DEFAULT_HEIGHT * DEFAULT_WIDTH);
+	float * * matchLeftCost = malloc2DArray<float>(MAX_LABEL, DEFAULT_HEIGHT * DEFAULT_WIDTH);
 
-		mkdir(PATH_TO_DISPARITY_MAP_STORAGE.c_str());
+	int * * segmentLeft = NULL, ** segmentRight = NULL;
+	int size_segment_left, size_segment_right;
 
-		//additional storage, init
-		float * matchRightCost[MAX_LABEL], * matchLeftCost[MAX_LABEL];
-		for (int idLabel = 0; idLabel < MAX_LABEL; ++idLabel){
-			matchRightCost[idLabel] = matchLeftCost[idLabel] = NULL;
-		}
-		int * * segmentLeft = NULL, *  * segmentRight = NULL;
-		int size_segment_left, size_segment_right;
+	Mat leftImage, rightImage;
+	loadImages(LEFT_IMAGE, RIGHT_IMAGE, leftImage, rightImage);
+	//Segmentation (required RGB images)
+	if (USE_SEGMENT) {
+		//Init for segmentation
+		segmentLeft = malloc2DArray<int>(NUM_ROWS, NUM_COLS);
+		segmentRight = malloc2DArray<int>(NUM_ROWS, NUM_COLS);
 
-		Mat leftImage, rightImage;
-		loadImages(LEFT_IMAGE_NAME, RIGHT_IMAGE_NAME, leftImage, rightImage);
-		//Segmentation (required RGB images)
-		if (USE_SEGMENT) {
-			//Init for segmentation
-			segmentLeft = new int * [NUM_ROWS];
-			segmentRight = new int * [NUM_ROWS];
-			for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
-				segmentLeft[idRow] = new int[NUM_COLS];
-				segmentRight[idRow] = new int[NUM_COLS];
-			}
+		//Do the segment
+		Mat segmentedRightImage, segmentedLeftImage;
+		segmentation(rightImage, segmentedRightImage, segmentRight, size_segment_right);
+		segmentation(leftImage, segmentedLeftImage, segmentLeft, size_segment_left);
 
-			//Do the segment
-			Mat segmentedRightImage, segmentedLeftImage;
-			segmentation(rightImage, segmentedRightImage, segmentRight, size_segment_right);
-			segmentation(leftImage, segmentedLeftImage, segmentLeft, size_segment_left);
-
-			if (SHOW_SEGMENTED_IMAGE) {
-				imshow("Segmented Left Image", segmentedLeftImage);
-				imshow("Segmented Right Image", segmentedRightImage);
-				waitKey();
-			}
-			if (STORE_SEGMENTED_IMAGE) {
-				storeMat(segmentedLeftImage, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-segmented-L.jpg", NULL);
-				storeMat(segmentedRightImage, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-segmented-R.jpg", NULL);
-			}
-		}
-
-		//Convert to GRAY images for matching
-		cvtColor(leftImage, leftImage, CV_BGR2GRAY);
-		cvtColor(rightImage, rightImage, CV_BGR2GRAY);
-		//Matching
-		int label2Disparity[MAX_LABEL];
-		for (int id = 0, disparity = MIN_DISPARITY; id < MAX_LABEL; ++id, disparity += 2){
-			label2Disparity[id] = disparity;
-		}
-		matchingTwoView(rightImage, leftImage, 1, label2Disparity, matchRightCost);
-		matchingTwoView(leftImage, rightImage, -1, label2Disparity, matchLeftCost);
-		//Store matching results
-		if (STORE_MATCHING_COST) {
-			cout << "Storing: " << endl;
-			vector<int> compression_params;
-			compression_params.push_back(CV_IMWRITE_JPEG_QUALITY);
-			compression_params.push_back(100);
-			for (int idLabel = 0; idLabel < MAX_LABEL; ++idLabel){
-				cout << ".";
-				Mat temp = Mat(leftImage.rows, leftImage.cols, CV_32FC1, matchLeftCost[idLabel]);
-				storeMat(temp, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-L-" + to_string(idLabel) + ".jpg", &compression_params);
-				Mat temp2 = Mat(leftImage.rows, leftImage.cols, CV_32FC1, matchRightCost[idLabel]);
-				storeMat(temp2, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-R-" + to_string(idLabel) + ".jpg", &compression_params);
-			}
-			cout << endl;
-		}
-		//Graph Cut
-		uchar disparityRightMap[NUM_ROWS][NUM_COLS];
-		uchar disparityLeftMap[NUM_ROWS][NUM_COLS];
-		graphCut(matchRightCost, label2Disparity, disparityRightMap, segmentRight);
-		graphCut(matchLeftCost, label2Disparity, disparityLeftMap, segmentLeft);
-
-		for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
-			for (int idCol = 0; idCol < NUM_COLS; ++idCol){
-				disparityLeftMap[idRow][idCol] = label2Disparity[disparityLeftMap[idRow][idCol]];
-				disparityRightMap[idRow][idCol] = label2Disparity[disparityRightMap[idRow][idCol]];
-			}
-		}
-
-		//Cross checking
-		uchar * * crossCheckRight = new uchar *[NUM_ROWS];
-		uchar * * crossCheckLeft = new uchar *[NUM_ROWS];
-		for (int id = 0; id < NUM_ROWS; ++id){
-			crossCheckLeft[id] = new uchar[NUM_COLS];
-			crossCheckRight[id] = new uchar[NUM_COLS];
-		}
-		//crossChecking(disparityLeftMap, disparityRightMap, crossCheckLeft, crossCheckRight);
-		//Store & show disparity Map
-		if (STORE_DISPARITY_MAP) {
-			Mat disparityRightMat = Mat(leftImage.rows, leftImage.cols, CV_8UC1, disparityRightMap);
-			storeMat(disparityRightMat, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-cutR.jpg", NULL);
-			Mat disparityLeftMat = Mat(leftImage.rows, leftImage.cols, CV_8UC1, disparityLeftMap);
-			storeMat(disparityLeftMat, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-cutL.jpg", NULL);
-		}
-
-		//PlaneFitting
-		planeFitting(disparityLeftMap, segmentLeft, size_segment_left, crossCheckLeft);
-		planeFitting(disparityRightMap, segmentRight, size_segment_right, crossCheckRight);
-
-		//Store & show disparity Map
-		if (STORE_DISPARITY_MAP) {
-			Mat disparityRightMat = Mat(leftImage.rows, leftImage.cols, CV_8UC1, disparityRightMap);
-			storeMat(disparityRightMat, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-fitR.jpg", NULL);
-			Mat disparityLeftMat = Mat(leftImage.rows, leftImage.cols, CV_8UC1, disparityLeftMap);
-			storeMat(disparityLeftMat, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-fitL.jpg", NULL);
-		}
-		if (SHOW_DISPARITY_MAP) {
-			Mat disparityRightMat = Mat(leftImage.rows, leftImage.cols, CV_8UC1, disparityRightMap);
-			Mat disparityLeftMat = Mat(leftImage.rows, leftImage.cols, CV_8UC1, disparityLeftMap);
-			imshow("Disparity right map", disparityRightMat);
-			imshow("Disparity left map", disparityLeftMat);
+		if (SHOW_SEGMENTED_IMAGE) {
+			imshow("Segmented Left Image", segmentedLeftImage);
+			imshow("Segmented Right Image", segmentedRightImage);
 			waitKey();
 		}
-
-		//Background Masking
-		Mat imageRightOut, imageLeftOut;
-		Mat leftBackground, rightBackground;
-		loadImages(LEFT_BACKGROUND_NAME, RIGHT_BACKGROUND_NAME, leftBackground, rightBackground);
-		loadImages(LEFT_IMAGE_NAME, RIGHT_IMAGE_NAME, imageLeftOut, imageRightOut);
-
-		DisjointSetInt * sets1 = new DisjointSetInt(NUM_COLS * NUM_ROWS);
-		DisjointSetInt * sets2 = new DisjointSetInt(NUM_COLS * NUM_ROWS);
-
-		for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
-			for (int idCol = 0; idCol < NUM_COLS; ++idCol){
-				int idCurJointSet = idRow * NUM_COLS + idCol;
-				if (disparityLeftMap[idRow][idCol] > LOW_THRES && disparityLeftMap[idRow][idCol] < HIGH_THRES){
-					if (idRow > 0 && (disparityLeftMap[idRow - 1][idCol] > LOW_THRES && disparityLeftMap[idRow - 1][idCol] < HIGH_THRES)){
-						sets1->mergeSets(idCurJointSet, (idRow - 1) * NUM_COLS + idCol);
-					}
-					if (idCol > 0 && (disparityLeftMap[idRow][idCol - 1] > LOW_THRES && disparityLeftMap[idRow][idCol - 1] < HIGH_THRES)){
-						sets1->mergeSets(idCurJointSet, idRow* NUM_COLS + idCol - 1);
-					}
-				}
-				if (disparityRightMap[idRow][idCol] > LOW_THRES && disparityRightMap[idRow][idCol] < HIGH_THRES){
-					if (idRow > 0 && (disparityRightMap[idRow - 1][idCol] > LOW_THRES && disparityRightMap[idRow - 1][idCol] < HIGH_THRES)){
-						sets2->mergeSets(idCurJointSet, (idRow - 1) * NUM_COLS + idCol);
-					}
-					if (idCol > 0 && (disparityRightMap[idRow][idCol - 1] > LOW_THRES && disparityRightMap[idRow][idCol - 1] < HIGH_THRES)){
-						sets2->mergeSets(idCurJointSet, idRow* NUM_COLS + idCol - 1);
-					}
-				}
-			}
+		if (STORE_SEGMENTED_IMAGE) {
+			storeMat(segmentedLeftImage, STORE_PATH + IMAGE_NAME + "-segmented-L.jpg", NULL);
+			storeMat(segmentedRightImage, STORE_PATH + IMAGE_NAME + "-segmented-R.jpg", NULL);
 		}
+		segmentedLeftImage.release();
+		segmentedRightImage.release();
+	}
 
-		int max1 = 0; int max2 = 0;
-		for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
-			for (int idCol = 0; idCol < NUM_COLS; ++idCol){
-				max1 = MAX(max1, sets1->getSizeOfSet(idRow * NUM_COLS + idCol));
-				max2 = MAX(max2, sets2->getSizeOfSet(idRow * NUM_COLS + idCol));
-			}
-		}
+	//Convert to GRAY images for matching
+	cvtColor(leftImage, leftImage, CV_BGR2GRAY);
+	cvtColor(rightImage, rightImage, CV_BGR2GRAY);
+	//Matching
+	int * label2Disparity = new int[MAX_LABEL];
+	for (int id = 0, disparity = MIN_DISPARITY; id < MAX_LABEL; ++id, disparity += 2){
+		label2Disparity[id] = disparity;
+	}
+	matchingTwoView(rightImage, leftImage, 1, label2Disparity, matchRightCost);
+	matchingTwoView(leftImage, rightImage, -1, label2Disparity, matchLeftCost);
 
-		for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
-			for (int idCol = 0; idCol < NUM_COLS; ++idCol){
-				int idCurJointSet = idRow * NUM_COLS + idCol;
-				if (disparityLeftMap[idRow][idCol] < LOW_THRES || disparityLeftMap[idRow][idCol] > HIGH_THRES || sets1->getSizeOfSet(idCurJointSet) != max1){
-					imageLeftOut.at<Vec3b>(idRow, idCol) = leftBackground.at<Vec3b>(idRow, idCol);
-				}
-				if (disparityRightMap[idRow][idCol] < LOW_THRES || disparityRightMap[idRow][idCol] > HIGH_THRES || sets2->getSizeOfSet(idCurJointSet) != max2){
-					imageRightOut.at<Vec3b>(idRow, idCol) = rightBackground.at<Vec3b>(idRow, idCol);
-				}
-			}
+	leftImage.release(); rightImage.release();
+	//Store matching results
+	if (STORE_MATCHING_COST) {
+		cout << "Storing: " << endl;
+		vector<int> compression_params;
+		compression_params.push_back(CV_IMWRITE_JPEG_QUALITY);
+		compression_params.push_back(100);
+		for (int idLabel = 0; idLabel < MAX_LABEL; ++idLabel){
+			cout << ".";
+			Mat temp = Mat(NUM_ROWS, NUM_COLS, CV_32FC1, matchLeftCost[idLabel]);
+			storeMat(temp, STORE_PATH + IMAGE_NAME + "-L-" + to_string(idLabel) + ".jpg", &compression_params);
+			temp.release();
+			Mat temp2 = Mat(NUM_ROWS, NUM_COLS, CV_32FC1, matchRightCost[idLabel]);
+			storeMat(temp2, STORE_PATH + IMAGE_NAME + "-R-" + to_string(idLabel) + ".jpg", &compression_params);
+			temp2.release();
 		}
+		cout << endl;
+	}
+	//Graph Cut
+	uchar * * disparityRightMap = malloc2DArray<uchar>(NUM_ROWS, NUM_COLS);
+	uchar * * disparityLeftMap = malloc2DArray<uchar>(NUM_ROWS, NUM_COLS);
 
-		delete sets1;
-		delete sets2;
+	graphCut(matchRightCost, label2Disparity, disparityRightMap, segmentRight);
+	graphCut(matchLeftCost, label2Disparity, disparityLeftMap, segmentLeft);
 
-		storeMat(imageLeftOut, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-maskL.jpg", NULL);
-		storeMat(imageRightOut, PATH_TO_DISPARITY_MAP_STORAGE + IMAGE_NAME + "-maskR.jpg", NULL);
+	//Release unnecessary memory
+	release2DArray<float>(matchLeftCost, MAX_LABEL, DEFAULT_WIDTH * DEFAULT_HEIGHT);
+	release2DArray<float>(matchRightCost, MAX_LABEL, DEFAULT_WIDTH * DEFAULT_HEIGHT);
 
-		//Release memory
-		for (int idLabel = 0; idLabel < MAX_LABEL; ++idLabel) {
-			if (matchLeftCost[idLabel] != NULL) {
-				delete[] matchLeftCost[idLabel];
-				matchLeftCost[idLabel] = NULL;
-			}
-			if (matchRightCost[idLabel] != NULL) {
-				delete[] matchRightCost[idLabel];
-				matchRightCost[idLabel] = NULL;
-			}
-		}
-		if (segmentLeft != NULL){
-			for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
-				if (segmentLeft[idRow] != NULL){
-					delete[] segmentLeft[idRow];
-					segmentLeft[idRow] = NULL;
-				}
-			}
-			delete[] segmentLeft;
-			segmentLeft = NULL;
-		}
-		if (segmentRight != NULL){
-			for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
-				if (segmentRight[idRow] != NULL){
-					delete[] segmentRight[idRow];
-					segmentRight[idRow] = NULL;
-				}
-			}
-			delete[] segmentRight;
-			segmentRight = NULL;
-		}
-		if (crossCheckLeft != NULL){
-			for (int id = 0; id < NUM_ROWS; ++id){
-				if (crossCheckLeft[id] != NULL){
-					delete[] crossCheckLeft[id];
-					crossCheckLeft[id] = NULL;
-				}
-			}
-			delete[] crossCheckLeft;
-			crossCheckLeft = NULL;
-		}
-		if (crossCheckRight != NULL){
-			for (int id = 0; id < NUM_ROWS; ++id){
-				if (crossCheckRight[id] != NULL){
-					delete[] crossCheckRight[id];
-					crossCheckRight[id] = NULL;
-				}
-			}
-			delete[] crossCheckRight;
-			crossCheckRight = NULL;
+	for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
+		for (int idCol = 0; idCol < NUM_COLS; ++idCol){
+			disparityLeftMap[idRow][idCol] = label2Disparity[disparityLeftMap[idRow][idCol]];
+			disparityRightMap[idRow][idCol] = label2Disparity[disparityRightMap[idRow][idCol]];
 		}
 	}
 
+	if (label2Disparity != NULL){
+		delete[] label2Disparity;
+		label2Disparity = NULL;
+	}
+
+	//Cross checking
+	uchar * * crossCheckRight = malloc2DArray<uchar>(NUM_ROWS, NUM_COLS);
+	uchar * * crossCheckLeft = malloc2DArray<uchar>(NUM_ROWS, NUM_COLS);
+
+	//crossChecking(disparityLeftMap, disparityRightMap, crossCheckLeft, crossCheckRight);
+	//Store & show disparity Map
+	if (STORE_DISPARITY_MAP) {
+		Mat disparityRightMat = Mat(NUM_ROWS, NUM_COLS, CV_8UC1, disparityRightMap);
+		storeMat(disparityRightMat, STORE_PATH + IMAGE_NAME + "-cutR.jpg", NULL);
+		disparityRightMat.release();
+		Mat disparityLeftMat = Mat(NUM_ROWS, NUM_COLS, CV_8UC1, disparityLeftMap);
+		storeMat(disparityLeftMat, STORE_PATH + IMAGE_NAME + "-cutL.jpg", NULL);
+		disparityLeftMat.release();
+	}
+
+	//PlaneFitting
+	if (USE_SEGMENT){
+		planeFitting(disparityLeftMap, segmentLeft, size_segment_left, crossCheckLeft);
+		planeFitting(disparityRightMap, segmentRight, size_segment_right, crossCheckRight);
+	}
+
+	if (USE_SEGMENT){
+		release2DArray<int>(segmentLeft, NUM_ROWS, NUM_COLS);
+		release2DArray<int>(segmentRight, NUM_ROWS, NUM_COLS);
+	}
+
+	release2DArray<uchar>(crossCheckLeft, NUM_ROWS, NUM_COLS);
+	release2DArray<uchar>(crossCheckRight, NUM_ROWS, NUM_COLS);
+
+	//Store & show disparity Map
+	if (STORE_DISPARITY_MAP) {
+		Mat disparityRightMat = Mat(NUM_ROWS, NUM_COLS, CV_8UC1, disparityRightMap);
+		storeMat(disparityRightMat, STORE_PATH + IMAGE_NAME + "-fitR.jpg", NULL);
+		disparityRightMat.release();
+		Mat disparityLeftMat = Mat(NUM_ROWS, NUM_COLS, CV_8UC1, disparityLeftMap);
+		storeMat(disparityLeftMat, STORE_PATH + IMAGE_NAME + "-fitL.jpg", NULL);
+		disparityLeftMat.release();
+	}
+
+	if (SHOW_DISPARITY_MAP) {
+		Mat disparityRightMat = Mat(NUM_ROWS, NUM_COLS, CV_8UC1, disparityRightMap);
+		Mat disparityLeftMat = Mat(NUM_ROWS, NUM_COLS, CV_8UC1, disparityLeftMap);
+		imshow("Disparity right map", disparityRightMat);
+		imshow("Disparity left map", disparityLeftMat);
+		waitKey();
+		disparityRightMat.release();
+		disparityLeftMat.release();
+	}
+
+	//Background Masking
+	Mat leftBackground, rightBackground;
+	loadImages(LEFT_BACKGROUND, RIGHT_BACKGROUND, leftBackground, rightBackground);
+	loadImages(LEFT_IMAGE, RIGHT_IMAGE, leftImage, rightImage);
+
+	DisjointSetInt * sets1 = new DisjointSetInt(NUM_COLS * NUM_ROWS);
+	DisjointSetInt * sets2 = new DisjointSetInt(NUM_COLS * NUM_ROWS);
+
+	for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
+		for (int idCol = 0; idCol < NUM_COLS; ++idCol){
+			int idCurJointSet = idRow * NUM_COLS + idCol;
+			if (disparityLeftMap[idRow][idCol] > LOW_THRES && disparityLeftMap[idRow][idCol] < HIGH_THRES){
+				if (idRow > 0 && (disparityLeftMap[idRow - 1][idCol] > LOW_THRES && disparityLeftMap[idRow - 1][idCol] < HIGH_THRES)){
+					sets1->mergeSets(idCurJointSet, (idRow - 1) * NUM_COLS + idCol);
+				}
+				if (idCol > 0 && (disparityLeftMap[idRow][idCol - 1] > LOW_THRES && disparityLeftMap[idRow][idCol - 1] < HIGH_THRES)){
+					sets1->mergeSets(idCurJointSet, idRow* NUM_COLS + idCol - 1);
+				}
+			}
+			if (disparityRightMap[idRow][idCol] > LOW_THRES && disparityRightMap[idRow][idCol] < HIGH_THRES){
+				if (idRow > 0 && (disparityRightMap[idRow - 1][idCol] > LOW_THRES && disparityRightMap[idRow - 1][idCol] < HIGH_THRES)){
+					sets2->mergeSets(idCurJointSet, (idRow - 1) * NUM_COLS + idCol);
+				}
+				if (idCol > 0 && (disparityRightMap[idRow][idCol - 1] > LOW_THRES && disparityRightMap[idRow][idCol - 1] < HIGH_THRES)){
+					sets2->mergeSets(idCurJointSet, idRow* NUM_COLS + idCol - 1);
+				}
+			}
+		}
+	}
+
+	int max1 = 0; int max2 = 0;
+	for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
+		for (int idCol = 0; idCol < NUM_COLS; ++idCol){
+			max1 = MAX(max1, sets1->getSizeOfSet(idRow * NUM_COLS + idCol));
+			max2 = MAX(max2, sets2->getSizeOfSet(idRow * NUM_COLS + idCol));
+		}
+	}
+
+	for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
+		for (int idCol = 0; idCol < NUM_COLS; ++idCol){
+			int idCurJointSet = idRow * NUM_COLS + idCol;
+			if (disparityLeftMap[idRow][idCol] < LOW_THRES || disparityLeftMap[idRow][idCol] > HIGH_THRES || sets1->getSizeOfSet(idCurJointSet) != max1){
+				leftImage.at<Vec3b>(idRow, idCol) = leftBackground.at<Vec3b>(idRow, idCol);
+			}
+			if (disparityRightMap[idRow][idCol] < LOW_THRES || disparityRightMap[idRow][idCol] > HIGH_THRES || sets2->getSizeOfSet(idCurJointSet) != max2){
+				rightImage.at<Vec3b>(idRow, idCol) = rightBackground.at<Vec3b>(idRow, idCol);
+			}
+		}
+	}
+
+	delete sets1;
+	delete sets2;
+
+	storeMat(leftImage, STORE_PATH + IMAGE_NAME + "-maskL.jpg", NULL);
+	storeMat(rightImage, STORE_PATH + IMAGE_NAME + "-maskR.jpg", NULL);
+
+	leftImage.release(); rightImage.release();
+	leftBackground.release(); rightBackground.release();
+
+	release2DArray<uchar>(disparityLeftMap, NUM_ROWS, NUM_COLS);
+	release2DArray<uchar>(disparityRightMap, NUM_ROWS, NUM_COLS);
+
 	return 0;
+}
+
+void trim(string & str){
+	int i = 0, j = str.length() - 1;
+	while (str[i] == ' ' || str[i] == '\t'){
+		++i;
+	}
+	while (str[j] == ' ' || str[j] == '\t' || str[j] == '\n'){
+		--j;
+	}
+	str = str.substr(i, j - i + 1);
+}
+
+void readConfigFile(const string & CONFIG_FILE){
+	char temp[256];
+
+	freopen(CONFIG_FILE.c_str(), "r", stdin);
+
+	scanf("DEFAULT_WIDTH"); scanf("%d\n", &DEFAULT_WIDTH);
+	scanf("DEFAULT_HEIGHT"); scanf("%d\n", &DEFAULT_HEIGHT);
+	scanf("MIN_DISPARITY"); scanf("%d\n", &MIN_DISPARITY);
+	scanf("MAX_DISPARITY"); scanf("%d\n", &MAX_DISPARITY);
+	scanf("STEP_DISPARITY"); scanf("%d\n", &STEP_DISPARITY);
+
+	NUM_COLS = DEFAULT_WIDTH;
+	NUM_ROWS = DEFAULT_HEIGHT;
+	MAX_LABEL = ((MAX_DISPARITY - MIN_DISPARITY) / STEP_DISPARITY) + 1;
+
+	scanf("SMOOTH_EFFICIENT"); scanf("%f\n", &SMOOTH_EFFICIENT);
+	scanf("SMOOTH_EFFICIENT2"); scanf("%f\n", &SMOOTH_EFFICIENT2);
+	scanf("SPATIAL_RAD"); scanf("%lf\n", &SPATIAL_RAD);
+	scanf("COLOR_RAD"); scanf("%lf\n", &COLOR_RAD);
+	scanf("MAX_PYR_LEVEL"); scanf("%d\n", &MAX_PYR_LEVEL);
+	scanf("LOWER_COLOR_THRESHOLD"); scanf("%f\n", &LOWER_COLOR_THRESHOLD);
+	scanf("UPPER_COLOR_THRESHOLD"); scanf("%f\n", &UPPER_COLOR_THRESHOLD);
+	scanf("MIN_SEGMENT_AREA"); scanf("%d\n", &MIN_SEGMENT_AREA);
+	scanf("NUM_OF_CYCLES"); scanf("%d\n", &NUM_OF_CYCLES);
+	scanf("BLOCK_SIZE"); scanf("%d\n", &BLOCK_SIZE);
+	//scanf("USE_SEGMENT"); scanf("%s\n", &temp);
+	//USE_SEGMENT = (strcmp(temp, "true") == 0) ? true : false;
+	//scanf("SHOW_DISPARITY_MAP"); scanf("%s\n", temp);
+	//SHOW_DISPARITY_MAP = (strcmp(temp, "true") == 0) ? true : false;
+	//scanf("STORE_DISPARITY_MAP"); scanf("%s\n", temp);
+	//STORE_DISPARITY_MAP = (strcmp(temp, "true") == 0) ? true : false;
+	//scanf("SHOW_SEGMENTED_IMAGE"); scanf("%s\n", temp);
+	//SHOW_SEGMENTED_IMAGE = (strcmp(temp, "true") == 0) ? true : false;
+	//scanf("STORE_SEGMENTED_IMAGE"); scanf("%s\n", temp);
+	//STORE_SEGMENTED_IMAGE = (strcmp(temp, "true") == 0) ? true : false;
+	//scanf("STORE_MATCHING_COST"); scanf("%s\n", temp);
+	//STORE_MATCHING_COST = (strcmp(temp, "true") == 0) ? true : false;
+	scanf("LOW_THRES"); scanf("%d\n", &LOW_THRES);
+	scanf("HIGH_THRES"); scanf("%d\n", &HIGH_THRES);
+
+	scanf("SHARED_PATH"); cin.getline(temp, 256);
+	SHARED_PATH = temp; trim(SHARED_PATH);
+	scanf("IMAGE_NAME"); cin.getline(temp, 256);
+	IMAGE_NAME = temp; trim(IMAGE_NAME);
+	scanf("BACKGROUND_NAME"); cin.getline(temp, 256);
+	BACKGROUND_NAME = temp; trim(BACKGROUND_NAME);
+
+	LEFT_IMAGE = SHARED_PATH + IMAGE_NAME + "-L.jpg";
+	RIGHT_IMAGE = SHARED_PATH + IMAGE_NAME + "-R.jpg";
+	LEFT_BACKGROUND = SHARED_PATH + BACKGROUND_NAME + "-L.jpg";
+	RIGHT_BACKGROUND = SHARED_PATH + BACKGROUND_NAME + "-R.jpg";
+
+	scanf("STORE_PATH"); cin.getline(temp, 256);
+	STORE_PATH = temp; trim(STORE_PATH);
+
+	printf("%d\n", DEFAULT_WIDTH);
+	printf("%d\n", DEFAULT_HEIGHT);
+	printf("%d\n", MIN_DISPARITY);
+	printf("%d\n", MAX_DISPARITY);
+	printf("%d\n", STEP_DISPARITY);
+	printf("%f\n", SMOOTH_EFFICIENT);
+	printf("%f\n", SMOOTH_EFFICIENT2);
+	printf("%lf\n", SPATIAL_RAD);
+	printf("%lf\n", COLOR_RAD);
+	printf("%d\n", MAX_PYR_LEVEL);
+	printf("%f\n", LOWER_COLOR_THRESHOLD);
+	printf("%f\n", UPPER_COLOR_THRESHOLD);
+	printf("%d\n", MIN_SEGMENT_AREA);
+	printf("%d\n", NUM_OF_CYCLES);
+	printf("%d\n", BLOCK_SIZE);
+	printf("%s\n", btoa(USE_SEGMENT));
+	printf("%s\n", btoa(SHOW_DISPARITY_MAP));
+	printf("%s\n", btoa(STORE_DISPARITY_MAP));
+	printf("%s\n", btoa(SHOW_SEGMENTED_IMAGE));
+	printf("%s\n", btoa(STORE_SEGMENTED_IMAGE));
+	printf("%s\n", btoa(STORE_MATCHING_COST));
+	printf("%d\n", LOW_THRES);
+	printf("%d\n", HIGH_THRES);
+
+	cout << "\"" << LEFT_IMAGE << "\"" << endl;
+	cout << "\"" << RIGHT_IMAGE << "\"" << endl;
+	cout << "\"" << LEFT_BACKGROUND << "\"" << endl;
+	cout << "\"" << RIGHT_BACKGROUND << "\"" << endl;
+	cout << "\"" << STORE_PATH << "\"" << endl;
+}
+
+template<class T>
+void release2DArray(T * * arr, int numRows, int numCols){
+	if (arr == NULL){
+		return;
+	}
+	for (int idRow = 0; idRow < numRows; ++idRow){
+		if (arr[idRow] != NULL){
+			delete[] arr[idRow];
+			arr[idRow] = NULL;
+		}
+	}
+	delete[] arr;
+	arr = NULL;
+}
+
+template<class T>
+T * * malloc2DArray(int numRows, int numCols){
+	T * * result = new T *[numRows];
+	for (int idRow = 0; idRow < numRows; ++idRow){
+		result[idRow] = new T[numCols];
+	}
+	return result;
 }
 
 void loadImages(const string & LEFT_IMAGE_NAME, const string & RIGHT_IMAGE_NAME, Mat & leftImage, Mat & rightImage) {
@@ -340,12 +437,12 @@ void storeMat(const Mat & image, const string & FILE_NAME, vector<int> * compres
 	}
 }
 
-void planeFitting(uchar disparityMap[][NUM_COLS], int * * segment, int size_segment, uchar * * crossCheck){
-	cout << "PlaneFitting: " <<  endl;
+void planeFitting(uchar * * disparityMap, int * * segment, int size_segment, uchar * * crossCheck){
+	cout << "PlaneFitting: " << endl;
 	clock_t start = clock();
 
 	int * numInSegment = new int[size_segment];
-	unsigned long long * fitValue = new unsigned long long [size_segment];
+	unsigned long long * fitValue = new unsigned long long[size_segment];
 	for (int idSegment = 0; idSegment < size_segment; ++idSegment){
 		numInSegment[idSegment] = 0;
 		fitValue[idSegment] = 255;
@@ -382,7 +479,7 @@ void planeFitting(uchar disparityMap[][NUM_COLS], int * * segment, int size_segm
 	cout << " End after " << ((double)(finish - start) / CLOCKS_PER_SEC) << " sec" << endl;
 }
 
-void graphCut(float * matchCost[MAX_LABEL], int label2Disparity[], uchar disparityMap[][NUM_COLS], int * * segment){
+void graphCut(float * * matchCost, int label2Disparity[], uchar * * disparityMap, int * * segment){
 	cout << "Graph cut: " << endl;
 	clock_t start = clock();
 	for (int idRow = 0; idRow < NUM_ROWS; ++idRow) {
@@ -482,7 +579,7 @@ void graphCut(float * matchCost[MAX_LABEL], int label2Disparity[], uchar dispari
 	cout << " End after " << ((double)(finish - start) / CLOCKS_PER_SEC) << " sec" << endl;
 }
 
-void matchingTwoView(const Mat & referImage, const Mat & searchImage, const int CONST_REF, int disparityList[], float * matchCost[MAX_LABEL]){
+void matchingTwoView(const Mat & referImage, const Mat & searchImage, const int CONST_REF, int disparityList[], float * * matchCost){
 	cout << "Matching Two Views: ";
 	clock_t start = clock();
 
@@ -491,8 +588,6 @@ void matchingTwoView(const Mat & referImage, const Mat & searchImage, const int 
 
 	for (int label = 0; label < MAX_LABEL; ++label){
 		int idDisparity = disparityList[label];
-		//cout << "idDisparity = " << idDisparity << endl;
-		matchCost[label] = (float *)malloc(DEFAULT_WIDTH * DEFAULT_HEIGHT * sizeof(float));
 		for (int pp = 0, idRow = 0; idRow < NUM_ROWS; ++idRow){
 			for (int idCol = 0; idCol < NUM_COLS; ++idCol, ++pp){
 				int targetCol = idCol + CONST_REF * idDisparity;
@@ -500,8 +595,9 @@ void matchingTwoView(const Mat & referImage, const Mat & searchImage, const int 
 					//block matching
 					int blockSize = 0;	float temporary = 0.0f;
 					matchCost[label][pp] = 0;
-					for (int idRow2 = -1; idRow2 <= 1; ++idRow2){
-						for (int idCol2 = -1; idCol2 <= 1; ++idCol2){
+					int halfBlockSize = (BLOCK_SIZE - 1) / 2;
+					for (int idRow2 = -halfBlockSize; idRow2 <= halfBlockSize; ++idRow2){
+						for (int idCol2 = -halfBlockSize; idCol2 <= halfBlockSize; ++idCol2){
 							if (idRow + idRow2 >= 0 && idRow + idRow2 < NUM_ROWS && idCol + idCol2 >= 0 && idCol + idCol2 < NUM_COLS){
 								if (targetCol + idCol2 >= 0 && targetCol + idCol2 < NUM_COLS){
 									++blockSize;
@@ -557,13 +653,13 @@ void segmentation(const Mat & img, Mat & res, int * * segment, int & size_segmen
 			int idCurInDisjoint = idRow * img.cols + idCol;
 			if (idRow > 0){
 				Vec3b colorUp = res.at<Vec3b>(idRow - 1, idCol);//TODO increase speed
-				if (abs(colorCur[0] - colorUp[0]) <= LOWER_COLOR_THRESHOLD && abs(colorCur[1] - colorUp[1]) <= LOWER_COLOR_THRESHOLD 
+				if (abs(colorCur[0] - colorUp[0]) <= LOWER_COLOR_THRESHOLD && abs(colorCur[1] - colorUp[1]) <= LOWER_COLOR_THRESHOLD
 					&& abs(colorCur[2] - colorUp[2]) <= LOWER_COLOR_THRESHOLD){
 					sets->mergeSets((idRow - 1) * img.cols + idCol, idCurInDisjoint);
 				}
 				else if (abs(colorCur[0] - colorUp[0]) <= UPPER_COLOR_THRESHOLD && abs(colorCur[1] - colorUp[1]) <= UPPER_COLOR_THRESHOLD
 					&& abs(colorCur[2] - colorUp[2]) <= UPPER_COLOR_THRESHOLD){
-					Edge edge = Edge(idCurInDisjoint, (idRow - 1) * img.cols + idCol, 
+					Edge edge = Edge(idCurInDisjoint, (idRow - 1) * img.cols + idCol,
 						MAX(abs(colorCur[0] - colorUp[0]), MAX(abs(colorCur[1] - colorUp[1]), abs(colorCur[2] - colorUp[2]))));
 					edges.push_back(edge);
 				}
@@ -617,10 +713,10 @@ void segmentation(const Mat & img, Mat & res, int * * segment, int & size_segmen
 
 	clock_t finish = clock();
 	cout << " End after " << ((double)(finish - start) / CLOCKS_PER_SEC) << " sec" << endl;
-	cout << " number of segment: " << size_segment <<  endl;
+	cout << " number of segment: " << size_segment << endl;
 }
 
-void crossChecking(uchar disparityLeftMap[][NUM_COLS], uchar disparityRightMap[][NUM_COLS], uchar * * crossCheckLeft, uchar * * crossCheckRight){
+void crossChecking(uchar * * disparityLeftMap, uchar * * disparityRightMap, uchar * * crossCheckLeft, uchar * * crossCheckRight){
 	for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
 		for (int idCol = 0; idCol < NUM_COLS; ++idCol){
 			crossCheckLeft[idRow][idCol] = disparityLeftMap[idRow][idCol];
