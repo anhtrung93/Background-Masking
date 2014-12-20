@@ -2,8 +2,11 @@
 #include<cstdio>
 #include<cstring>
 #include<iostream>
+#include<cstdlib>
 
 namespace BackgroundMaskingForm {
+
+	using namespace std;
 
 	using namespace System;
 	using namespace System::ComponentModel;
@@ -55,9 +58,11 @@ namespace BackgroundMaskingForm {
 	private: System::Windows::Forms::NumericUpDown^  widthNumeric;
 	private: System::Windows::Forms::NumericUpDown^  heightNumeric;
 	private: System::Windows::Forms::NumericUpDown^  minDisNumeric;
-	private: System::Windows::Forms::NumericUpDown^  numericUpDown1;
+	private: System::Windows::Forms::NumericUpDown^  maxDisNumeric;
+
 	private: System::Windows::Forms::NumericUpDown^  stepDisNumeric;
-	private: System::Windows::Forms::NumericUpDown^  numericUpDown2;
+	private: System::Windows::Forms::NumericUpDown^  blockSizeNumeric;
+
 	private: System::Windows::Forms::NumericUpDown^  minSegmentAreaNumeric;
 	private: System::Windows::Forms::NumericUpDown^  lowColorThresNumeric;
 	private: System::Windows::Forms::NumericUpDown^  highColorThresNumeric;
@@ -136,9 +141,9 @@ namespace BackgroundMaskingForm {
 			this->widthNumeric = (gcnew System::Windows::Forms::NumericUpDown());
 			this->heightNumeric = (gcnew System::Windows::Forms::NumericUpDown());
 			this->minDisNumeric = (gcnew System::Windows::Forms::NumericUpDown());
-			this->numericUpDown1 = (gcnew System::Windows::Forms::NumericUpDown());
+			this->maxDisNumeric = (gcnew System::Windows::Forms::NumericUpDown());
 			this->stepDisNumeric = (gcnew System::Windows::Forms::NumericUpDown());
-			this->numericUpDown2 = (gcnew System::Windows::Forms::NumericUpDown());
+			this->blockSizeNumeric = (gcnew System::Windows::Forms::NumericUpDown());
 			this->minSegmentAreaNumeric = (gcnew System::Windows::Forms::NumericUpDown());
 			this->lowColorThresNumeric = (gcnew System::Windows::Forms::NumericUpDown());
 			this->highColorThresNumeric = (gcnew System::Windows::Forms::NumericUpDown());
@@ -163,9 +168,9 @@ namespace BackgroundMaskingForm {
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->widthNumeric))->BeginInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->heightNumeric))->BeginInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->minDisNumeric))->BeginInit();
-			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->numericUpDown1))->BeginInit();
+			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->maxDisNumeric))->BeginInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->stepDisNumeric))->BeginInit();
-			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->numericUpDown2))->BeginInit();
+			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->blockSizeNumeric))->BeginInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->minSegmentAreaNumeric))->BeginInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->lowColorThresNumeric))->BeginInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->highColorThresNumeric))->BeginInit();
@@ -177,7 +182,7 @@ namespace BackgroundMaskingForm {
 			// 
 			// button1
 			// 
-			this->button1->Location = System::Drawing::Point(473, 469);
+			this->button1->Location = System::Drawing::Point(515, 456);
 			this->button1->Name = L"button1";
 			this->button1->Size = System::Drawing::Size(102, 35);
 			this->button1->TabIndex = 0;
@@ -316,15 +321,15 @@ namespace BackgroundMaskingForm {
 			this->minDisNumeric->TabIndex = 31;
 			this->minDisNumeric->Value = System::Decimal(gcnew cli::array< System::Int32 >(4) { 40, 0, 0, System::Int32::MinValue });
 			// 
-			// numericUpDown1
+			// maxDisNumeric
 			// 
-			this->numericUpDown1->Location = System::Drawing::Point(515, 89);
-			this->numericUpDown1->Maximum = System::Decimal(gcnew cli::array< System::Int32 >(4) { 3584, 0, 0, 0 });
-			this->numericUpDown1->Minimum = System::Decimal(gcnew cli::array< System::Int32 >(4) { 3584, 0, 0, System::Int32::MinValue });
-			this->numericUpDown1->Name = L"numericUpDown1";
-			this->numericUpDown1->Size = System::Drawing::Size(102, 20);
-			this->numericUpDown1->TabIndex = 32;
-			this->numericUpDown1->Value = System::Decimal(gcnew cli::array< System::Int32 >(4) { 80, 0, 0, 0 });
+			this->maxDisNumeric->Location = System::Drawing::Point(515, 89);
+			this->maxDisNumeric->Maximum = System::Decimal(gcnew cli::array< System::Int32 >(4) { 3584, 0, 0, 0 });
+			this->maxDisNumeric->Minimum = System::Decimal(gcnew cli::array< System::Int32 >(4) { 3584, 0, 0, System::Int32::MinValue });
+			this->maxDisNumeric->Name = L"maxDisNumeric";
+			this->maxDisNumeric->Size = System::Drawing::Size(102, 20);
+			this->maxDisNumeric->TabIndex = 32;
+			this->maxDisNumeric->Value = System::Decimal(gcnew cli::array< System::Int32 >(4) { 80, 0, 0, 0 });
 			// 
 			// stepDisNumeric
 			// 
@@ -334,15 +339,15 @@ namespace BackgroundMaskingForm {
 			this->stepDisNumeric->TabIndex = 33;
 			this->stepDisNumeric->Value = System::Decimal(gcnew cli::array< System::Int32 >(4) { 2, 0, 0, 0 });
 			// 
-			// numericUpDown2
+			// blockSizeNumeric
 			// 
-			this->numericUpDown2->Location = System::Drawing::Point(515, 278);
-			this->numericUpDown2->Maximum = System::Decimal(gcnew cli::array< System::Int32 >(4) { 99, 0, 0, 0 });
-			this->numericUpDown2->Minimum = System::Decimal(gcnew cli::array< System::Int32 >(4) { 1, 0, 0, 0 });
-			this->numericUpDown2->Name = L"numericUpDown2";
-			this->numericUpDown2->Size = System::Drawing::Size(102, 20);
-			this->numericUpDown2->TabIndex = 36;
-			this->numericUpDown2->Value = System::Decimal(gcnew cli::array< System::Int32 >(4) { 3, 0, 0, 0 });
+			this->blockSizeNumeric->Location = System::Drawing::Point(515, 278);
+			this->blockSizeNumeric->Maximum = System::Decimal(gcnew cli::array< System::Int32 >(4) { 99, 0, 0, 0 });
+			this->blockSizeNumeric->Minimum = System::Decimal(gcnew cli::array< System::Int32 >(4) { 1, 0, 0, 0 });
+			this->blockSizeNumeric->Name = L"blockSizeNumeric";
+			this->blockSizeNumeric->Size = System::Drawing::Size(102, 20);
+			this->blockSizeNumeric->TabIndex = 36;
+			this->blockSizeNumeric->Value = System::Decimal(gcnew cli::array< System::Int32 >(4) { 3, 0, 0, 0 });
 			// 
 			// minSegmentAreaNumeric
 			// 
@@ -356,17 +361,20 @@ namespace BackgroundMaskingForm {
 			// lowColorThresNumeric
 			// 
 			this->lowColorThresNumeric->Location = System::Drawing::Point(515, 197);
+			this->lowColorThresNumeric->Maximum = System::Decimal(gcnew cli::array< System::Int32 >(4) { 500, 0, 0, 0 });
 			this->lowColorThresNumeric->Name = L"lowColorThresNumeric";
 			this->lowColorThresNumeric->Size = System::Drawing::Size(102, 20);
 			this->lowColorThresNumeric->TabIndex = 38;
+			this->lowColorThresNumeric->Value = System::Decimal(gcnew cli::array< System::Int32 >(4) { 3, 0, 0, 0 });
 			// 
 			// highColorThresNumeric
 			// 
 			this->highColorThresNumeric->Location = System::Drawing::Point(515, 225);
+			this->highColorThresNumeric->Maximum = System::Decimal(gcnew cli::array< System::Int32 >(4) { 500, 0, 0, 0 });
 			this->highColorThresNumeric->Name = L"highColorThresNumeric";
 			this->highColorThresNumeric->Size = System::Drawing::Size(102, 20);
 			this->highColorThresNumeric->TabIndex = 39;
-			this->highColorThresNumeric->Value = System::Decimal(gcnew cli::array< System::Int32 >(4) { 40, 0, 0, 0 });
+			this->highColorThresNumeric->Value = System::Decimal(gcnew cli::array< System::Int32 >(4) { 200, 0, 0, 0 });
 			// 
 			// smoothEffText
 			// 
@@ -547,9 +555,9 @@ namespace BackgroundMaskingForm {
 			this->Controls->Add(this->highColorThresNumeric);
 			this->Controls->Add(this->lowColorThresNumeric);
 			this->Controls->Add(this->minSegmentAreaNumeric);
-			this->Controls->Add(this->numericUpDown2);
+			this->Controls->Add(this->blockSizeNumeric);
 			this->Controls->Add(this->stepDisNumeric);
-			this->Controls->Add(this->numericUpDown1);
+			this->Controls->Add(this->maxDisNumeric);
 			this->Controls->Add(this->minDisNumeric);
 			this->Controls->Add(this->heightNumeric);
 			this->Controls->Add(this->widthNumeric);
@@ -570,9 +578,9 @@ namespace BackgroundMaskingForm {
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->widthNumeric))->EndInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->heightNumeric))->EndInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->minDisNumeric))->EndInit();
-			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->numericUpDown1))->EndInit();
+			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->maxDisNumeric))->EndInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->stepDisNumeric))->EndInit();
-			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->numericUpDown2))->EndInit();
+			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->blockSizeNumeric))->EndInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->minSegmentAreaNumeric))->EndInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->lowColorThresNumeric))->EndInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->highColorThresNumeric))->EndInit();
@@ -586,7 +594,33 @@ namespace BackgroundMaskingForm {
 		}
 #pragma endregion
 	private: System::Void button1_Click(System::Object^  sender, System::EventArgs^  e) {
+				 const char OUTPUT[] = "..\\Release\\ConfigFile.txt";
+				 FILE * temp = freopen(OUTPUT, "w", stdout);
+				 printf("DEFAULT_WIDTH\t\t\t%s\n", this->widthNumeric->Text);
+				 printf("DEFAULT_HEIGHT\t\t\t%s\n", this->heightNumeric->Text);
+				 printf("MIN_DISPARITY\t\t\t%s\n", this->minDisNumeric->Text);
+				 printf("MAX_DISPARITY\t\t\t%s\n", this->maxDisNumeric->Text);
+				 printf("STEP_DISPARITY\t\t\t%s\n", this->stepDisNumeric->Text);
+				 printf("SMOOTH_EFFICIENT\t\t\t%s\n", this->smoothEffText->Text);
+				 printf("SMOOTH_EFFICIENT2\t\t\t%s\n", this->smoothEff2Text->Text);
+				 printf("LOWER_COLOR_THRESHOLD\t\t\t%s\n", this->lowColorThresNumeric->Text);
+				 printf("UPPER_COLOR_THRESHOLD\t\t\t%s\n", this->highColorThresNumeric->Text);
+				 printf("MIN_SEGMENT_AREA\t\t\t%s\n", this->minSegmentAreaNumeric->Text);
+				 printf("BLOCK_SIZE\t\t\t%s\n", this->blockSizeNumeric->Text);
+				 printf("LOW_THRES\t\t\t%s\n", this->foregndLowThresNumeric->Text);
+				 printf("HIGH_THRES\t\t\t%s\n", this->foregndHighThres->Text);
+				 printf("LEFT_IMAGE\t\t\t%s\n", this->leftImageTextBox->Text);
+				 printf("LEFT_BACKGROUND\t\t\t%s\n", this->leftBackgroundTextBox->Text);
+				 printf("STORE_PATH\t\t\t%s\n", this->outputTextBox->Text);
+				 fclose(temp);
 
+				 system("..\\Release\\BackgroundMasking.exe ..\\Release\\ConfigFile.txt");
+
+				 System::String^ name = this->leftImageTextBox->Text->Substring(this->leftImageTextBox->Text->Length - 14, 8);
+				 System::String^ fileLeft = this->outputTextBox->Text + name + "-maskL.jpg";
+				 System::String^ fileRight = this->outputTextBox->Text + name + "-maskR.jpg";
+				 this->pictureBox1->Image = Image::FromFile(fileLeft);
+				 this->pictureBox2->Image = Image::FromFile(fileRight);
 	}
 
 	private: System::Void browseLeftImage_Click(System::Object^  sender, System::EventArgs^  e) {

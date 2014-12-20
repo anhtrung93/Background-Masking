@@ -84,7 +84,13 @@ T * * malloc2DArray(int, int);
 const string CONFIG_FILE = "E:\\Workspace\\OpenCV_ws\\Background-Masking\\BackgroundMasking\\ConfigFile.txt";
 
 int main(int argc, char** argv) {
-	readConfigFile(CONFIG_FILE);
+	if (argc > 0){
+		readConfigFile(argv[1]);
+	}
+	else {
+		readConfigFile(CONFIG_FILE);
+	}
+	
 
 	mkdir(STORE_PATH.c_str());
 
@@ -315,13 +321,13 @@ void readConfigFile(const string & CONFIG_FILE){
 
 	scanf("SMOOTH_EFFICIENT"); scanf("%f\n", &SMOOTH_EFFICIENT);
 	scanf("SMOOTH_EFFICIENT2"); scanf("%f\n", &SMOOTH_EFFICIENT2);
-	scanf("SPATIAL_RAD"); scanf("%lf\n", &SPATIAL_RAD);
+	/*scanf("SPATIAL_RAD"); scanf("%lf\n", &SPATIAL_RAD);
 	scanf("COLOR_RAD"); scanf("%lf\n", &COLOR_RAD);
-	scanf("MAX_PYR_LEVEL"); scanf("%d\n", &MAX_PYR_LEVEL);
+	scanf("MAX_PYR_LEVEL"); scanf("%d\n", &MAX_PYR_LEVEL);*/
 	scanf("LOWER_COLOR_THRESHOLD"); scanf("%f\n", &LOWER_COLOR_THRESHOLD);
 	scanf("UPPER_COLOR_THRESHOLD"); scanf("%f\n", &UPPER_COLOR_THRESHOLD);
 	scanf("MIN_SEGMENT_AREA"); scanf("%d\n", &MIN_SEGMENT_AREA);
-	scanf("NUM_OF_CYCLES"); scanf("%d\n", &NUM_OF_CYCLES);
+	//scanf("NUM_OF_CYCLES"); scanf("%d\n", &NUM_OF_CYCLES);
 	scanf("BLOCK_SIZE"); scanf("%d\n", &BLOCK_SIZE);
 	//scanf("USE_SEGMENT"); scanf("%s\n", &temp);
 	//USE_SEGMENT = (strcmp(temp, "true") == 0) ? true : false;
@@ -338,17 +344,15 @@ void readConfigFile(const string & CONFIG_FILE){
 	scanf("LOW_THRES"); scanf("%d\n", &LOW_THRES);
 	scanf("HIGH_THRES"); scanf("%d\n", &HIGH_THRES);
 
-	scanf("SHARED_PATH"); cin.getline(temp, 256);
-	SHARED_PATH = temp; trim(SHARED_PATH);
-	scanf("IMAGE_NAME"); cin.getline(temp, 256);
-	IMAGE_NAME = temp; trim(IMAGE_NAME);
-	scanf("BACKGROUND_NAME"); cin.getline(temp, 256);
-	BACKGROUND_NAME = temp; trim(BACKGROUND_NAME);
+	scanf("LEFT_IMAGE"); cin.getline(temp, 256);
+	LEFT_IMAGE = temp; trim(LEFT_IMAGE);
+	scanf("LEFT_BACKGROUND"); cin.getline(temp, 256);
+	LEFT_BACKGROUND = temp; trim(LEFT_BACKGROUND);
 
-	LEFT_IMAGE = SHARED_PATH + IMAGE_NAME + "-L.jpg";
-	RIGHT_IMAGE = SHARED_PATH + IMAGE_NAME + "-R.jpg";
-	LEFT_BACKGROUND = SHARED_PATH + BACKGROUND_NAME + "-L.jpg";
-	RIGHT_BACKGROUND = SHARED_PATH + BACKGROUND_NAME + "-R.jpg";
+	IMAGE_NAME = LEFT_IMAGE.substr(LEFT_IMAGE.length() - 14, 8);
+	BACKGROUND_NAME = LEFT_BACKGROUND.substr(LEFT_BACKGROUND.length() - 14, 8);
+	RIGHT_IMAGE = LEFT_IMAGE.substr(0, LEFT_IMAGE.length() - 6) + "-R.jpg";
+	RIGHT_BACKGROUND = LEFT_BACKGROUND.substr(0, LEFT_BACKGROUND.length() - 6) + "-R.jpg";
 
 	scanf("STORE_PATH"); cin.getline(temp, 256);
 	STORE_PATH = temp; trim(STORE_PATH);
@@ -377,6 +381,8 @@ void readConfigFile(const string & CONFIG_FILE){
 	printf("%d\n", LOW_THRES);
 	printf("%d\n", HIGH_THRES);
 
+	cout << "\"" << IMAGE_NAME << "\"" << endl;
+	cout << "\"" << BACKGROUND_NAME << "\"" << endl;
 	cout << "\"" << LEFT_IMAGE << "\"" << endl;
 	cout << "\"" << RIGHT_IMAGE << "\"" << endl;
 	cout << "\"" << LEFT_BACKGROUND << "\"" << endl;
