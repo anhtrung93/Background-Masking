@@ -91,6 +91,10 @@ namespace BackgroundMaskingForm {
 	private: System::Windows::Forms::OpenFileDialog^  openLeftImage;
 	private: System::Windows::Forms::OpenFileDialog^  openLeftBackground;
 	private: System::Windows::Forms::Button^  browseLeftBackground;
+	private: System::Windows::Forms::Button^  button2;
+	private: System::Windows::Forms::Button^  segmentButton;
+	private: System::Windows::Forms::Button^  button4;
+
 
 
 
@@ -125,7 +129,6 @@ namespace BackgroundMaskingForm {
 		/// </summary>
 		void InitializeComponent(void)
 		{
-			System::ComponentModel::ComponentResourceManager^  resources = (gcnew System::ComponentModel::ComponentResourceManager(MyForm::typeid));
 			this->button1 = (gcnew System::Windows::Forms::Button());
 			this->label1 = (gcnew System::Windows::Forms::Label());
 			this->label2 = (gcnew System::Windows::Forms::Label());
@@ -165,6 +168,9 @@ namespace BackgroundMaskingForm {
 			this->openLeftImage = (gcnew System::Windows::Forms::OpenFileDialog());
 			this->openLeftBackground = (gcnew System::Windows::Forms::OpenFileDialog());
 			this->browseLeftBackground = (gcnew System::Windows::Forms::Button());
+			this->button2 = (gcnew System::Windows::Forms::Button());
+			this->segmentButton = (gcnew System::Windows::Forms::Button());
+			this->button4 = (gcnew System::Windows::Forms::Button());
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->widthNumeric))->BeginInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->heightNumeric))->BeginInit();
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->minDisNumeric))->BeginInit();
@@ -182,11 +188,11 @@ namespace BackgroundMaskingForm {
 			// 
 			// button1
 			// 
-			this->button1->Location = System::Drawing::Point(515, 456);
+			this->button1->Location = System::Drawing::Point(532, 467);
 			this->button1->Name = L"button1";
-			this->button1->Size = System::Drawing::Size(102, 35);
+			this->button1->Size = System::Drawing::Size(83, 23);
 			this->button1->TabIndex = 0;
-			this->button1->Text = L"Run";
+			this->button1->Text = L"All";
 			this->button1->UseVisualStyleBackColor = true;
 			this->button1->Click += gcnew System::EventHandler(this, &MyForm::button1_Click);
 			// 
@@ -481,25 +487,23 @@ namespace BackgroundMaskingForm {
 			// 
 			// pictureBox1
 			// 
-			this->pictureBox1->Image = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"pictureBox1.Image")));
-			this->pictureBox1->InitialImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"pictureBox1.InitialImage")));
 			this->pictureBox1->Location = System::Drawing::Point(12, 9);
 			this->pictureBox1->Name = L"pictureBox1";
 			this->pictureBox1->Size = System::Drawing::Size(386, 216);
 			this->pictureBox1->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
 			this->pictureBox1->TabIndex = 57;
 			this->pictureBox1->TabStop = false;
+			this->pictureBox1->UseWaitCursor = true;
 			// 
 			// pictureBox2
 			// 
-			this->pictureBox2->Image = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"pictureBox2.Image")));
-			this->pictureBox2->InitialImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"pictureBox2.InitialImage")));
 			this->pictureBox2->Location = System::Drawing::Point(13, 232);
 			this->pictureBox2->Name = L"pictureBox2";
 			this->pictureBox2->Size = System::Drawing::Size(385, 220);
 			this->pictureBox2->SizeMode = System::Windows::Forms::PictureBoxSizeMode::StretchImage;
 			this->pictureBox2->TabIndex = 58;
 			this->pictureBox2->TabStop = false;
+			this->pictureBox2->UseWaitCursor = true;
 			// 
 			// browseLeftImage
 			// 
@@ -531,11 +535,44 @@ namespace BackgroundMaskingForm {
 			this->browseLeftBackground->UseVisualStyleBackColor = true;
 			this->browseLeftBackground->Click += gcnew System::EventHandler(this, &MyForm::browseLeftBackground_Click);
 			// 
+			// button2
+			// 
+			this->button2->Location = System::Drawing::Point(532, 439);
+			this->button2->Name = L"button2";
+			this->button2->Size = System::Drawing::Size(83, 23);
+			this->button2->TabIndex = 61;
+			this->button2->Text = L"GraphCut";
+			this->button2->UseVisualStyleBackColor = true;
+			this->button2->Click += gcnew System::EventHandler(this, &MyForm::button2_Click);
+			// 
+			// segmentButton
+			// 
+			this->segmentButton->Location = System::Drawing::Point(439, 439);
+			this->segmentButton->Name = L"segmentButton";
+			this->segmentButton->Size = System::Drawing::Size(89, 23);
+			this->segmentButton->TabIndex = 62;
+			this->segmentButton->Text = L"Segmentation";
+			this->segmentButton->UseVisualStyleBackColor = true;
+			this->segmentButton->Click += gcnew System::EventHandler(this, &MyForm::segmentButton_Click);
+			// 
+			// button4
+			// 
+			this->button4->Location = System::Drawing::Point(439, 467);
+			this->button4->Name = L"button4";
+			this->button4->Size = System::Drawing::Size(89, 23);
+			this->button4->TabIndex = 63;
+			this->button4->Text = L"PlaneFitting";
+			this->button4->UseVisualStyleBackColor = true;
+			this->button4->Click += gcnew System::EventHandler(this, &MyForm::button4_Click);
+			// 
 			// MyForm
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
 			this->ClientSize = System::Drawing::Size(629, 503);
+			this->Controls->Add(this->button4);
+			this->Controls->Add(this->segmentButton);
+			this->Controls->Add(this->button2);
 			this->Controls->Add(this->browseLeftBackground);
 			this->Controls->Add(this->browseLeftImage);
 			this->Controls->Add(this->pictureBox2);
@@ -593,7 +630,7 @@ namespace BackgroundMaskingForm {
 
 		}
 #pragma endregion
-	private: System::Void button1_Click(System::Object^  sender, System::EventArgs^  e) {
+	private: System::Void createConfigFile(){
 				 const char OUTPUT[] = "..\\Release\\ConfigFile.txt";
 				 FILE * temp = freopen(OUTPUT, "w", stdout);
 				 printf("DEFAULT_WIDTH\t\t\t%s\n", this->widthNumeric->Text);
@@ -613,14 +650,19 @@ namespace BackgroundMaskingForm {
 				 printf("LEFT_BACKGROUND\t\t\t%s\n", this->leftBackgroundTextBox->Text);
 				 printf("STORE_PATH\t\t\t%s\n", this->outputTextBox->Text);
 				 fclose(temp);
+	}
+
+	private: System::Void button1_Click(System::Object^  sender, System::EventArgs^  e) {
+				 this->removeImages();
+
+				 this->createConfigFile();
 
 				 system("..\\Release\\BackgroundMasking.exe ..\\Release\\ConfigFile.txt");
 
 				 System::String^ name = this->leftImageTextBox->Text->Substring(this->leftImageTextBox->Text->Length - 14, 8);
 				 System::String^ fileLeft = this->outputTextBox->Text + name + "-maskL.jpg";
 				 System::String^ fileRight = this->outputTextBox->Text + name + "-maskR.jpg";
-				 this->pictureBox1->Image = Image::FromFile(fileLeft);
-				 this->pictureBox2->Image = Image::FromFile(fileRight);
+				 this->showImages(fileLeft, fileRight);
 	}
 
 	private: System::Void browseLeftImage_Click(System::Object^  sender, System::EventArgs^  e) {
@@ -628,8 +670,8 @@ namespace BackgroundMaskingForm {
 				 if (result == System::Windows::Forms::DialogResult::OK){
 					 System::String^ file = this->openLeftImage->FileName;
 					 this->leftImageTextBox->Text = file;
-					 this->pictureBox1->Image = Image::FromFile(file);
-					 this->pictureBox2->Image = Image::FromFile(file->Substring(0, file->Length - 6) + "-R.jpg");
+
+					 removeImages();
 				 }
 	}
 
@@ -640,5 +682,63 @@ namespace BackgroundMaskingForm {
 					 this->leftBackgroundTextBox->Text = file;
 				 }
 	}
-	};
+
+	private: System::Void removeImages(){
+				 if (this->pictureBox1->Image != nullptr){
+					 delete this->pictureBox1->Image;
+				 }
+				 if (this->pictureBox2->Image != nullptr){
+					 delete this->pictureBox2->Image;
+				 }
+				 showImages(this->leftImageTextBox->Text, this->leftImageTextBox->Text->Substring(0, this->leftImageTextBox->Text->Length - 6) + "-R.jpg");
+	}
+
+	private: System::Void showImages(System::String^ fileLeft, System::String^ fileRight){
+				 try {
+					 this->pictureBox1->Image = Image::FromFile(fileLeft);
+					 this->pictureBox2->Image = Image::FromFile(fileRight);
+				 }
+				 catch (...){
+					 this->pictureBox1->Image = nullptr;
+					 this->pictureBox2->Image = nullptr;
+				 }
+	}
+	private: System::Void segmentButton_Click(System::Object^  sender, System::EventArgs^  e) {
+				 removeImages();
+
+				 this->createConfigFile();
+
+
+				 system("..\\Release\\BackgroundMasking.exe segment ..\\Release\\ConfigFile.txt");
+
+				 System::String^ name = this->leftImageTextBox->Text->Substring(this->leftImageTextBox->Text->Length - 14, 8);
+				 System::String^ fileLeft = this->outputTextBox->Text + name + "-segmented-L.jpg";
+				 System::String^ fileRight = this->outputTextBox->Text + name + "-segmented-R.jpg";
+				 this->showImages(fileLeft, fileRight);
+	}
+	private: System::Void button2_Click(System::Object^  sender, System::EventArgs^  e) {
+				 removeImages();
+
+				 this->createConfigFile();
+
+				 system("..\\Release\\BackgroundMasking.exe graphcut ..\\Release\\ConfigFile.txt");
+
+				 System::String^ name = this->leftImageTextBox->Text->Substring(this->leftImageTextBox->Text->Length - 14, 8);
+				 System::String^ fileLeft = this->outputTextBox->Text + name + "-cutL.jpg";
+				 System::String^ fileRight = this->outputTextBox->Text + name + "-cutR.jpg";
+				 this->showImages(fileLeft, fileRight);
+	}
+	private: System::Void button4_Click(System::Object^  sender, System::EventArgs^  e) {
+				 removeImages();
+
+				 this->createConfigFile();
+
+				 system("..\\Release\\BackgroundMasking.exe planefitting ..\\Release\\ConfigFile.txt");
+
+				 System::String^ name = this->leftImageTextBox->Text->Substring(this->leftImageTextBox->Text->Length - 14, 8);
+				 System::String^ fileLeft = this->outputTextBox->Text + name + "-fitL.jpg";
+				 System::String^ fileRight = this->outputTextBox->Text + name + "-fitR.jpg";
+				 this->showImages(fileLeft, fileRight);
+	}
+};
 }

@@ -49,6 +49,7 @@ bool USE_SEGMENT = true;
 
 bool SHOW_DISPARITY_MAP = false;
 bool STORE_DISPARITY_MAP = false;
+bool STORE_PLANE_FITTING = false;
 bool SHOW_SEGMENTED_IMAGE = false;
 bool STORE_SEGMENTED_IMAGE = false;
 bool STORE_MATCHING_COST = false;
@@ -84,14 +85,39 @@ T * * malloc2DArray(int, int);
 const string CONFIG_FILE = "E:\\Workspace\\OpenCV_ws\\Background-Masking\\BackgroundMasking\\ConfigFile.txt";
 
 int main(int argc, char** argv) {
+	bool segmentOnly = false;
+	bool graphCutOnly = false;
+	bool planeFittingOnly = false;
+	bool all = false;
 	if (argc > 0){
-		readConfigFile(argv[1]);
+		if (strcmp(argv[1], "segment") == 0){
+			segmentOnly = true;
+			STORE_SEGMENTED_IMAGE = true;
+			readConfigFile(argv[2]);
+		}
+		else if (strcmp(argv[1], "graphcut") == 0){
+			graphCutOnly = true;
+			STORE_DISPARITY_MAP = true;
+			readConfigFile(argv[2]);
+		}
+		else if (strcmp(argv[1], "planefitting") == 0){
+			planeFittingOnly = true;
+			STORE_PLANE_FITTING = true;
+			readConfigFile(argv[2]);
+		}
+		else {
+			readConfigFile(argv[1]);
+			all = true;
+		}
 	}
 	else {
 		readConfigFile(CONFIG_FILE);
+		segmentOnly = true;
+		graphCutOnly = true;
+		planeFittingOnly = true;
+		all = true;
 	}
 	
-
 	mkdir(STORE_PATH.c_str());
 
 	//additional storage, init
@@ -103,6 +129,8 @@ int main(int argc, char** argv) {
 
 	Mat leftImage, rightImage;
 	loadImages(LEFT_IMAGE, RIGHT_IMAGE, leftImage, rightImage);
+	Mat leftBackground, rightBackground;
+	loadImages(LEFT_BACKGROUND, RIGHT_BACKGROUND, leftBackground, rightBackground);
 	//Segmentation (required RGB images)
 	if (USE_SEGMENT) {
 		//Init for segmentation
@@ -126,6 +154,8 @@ int main(int argc, char** argv) {
 		segmentedLeftImage.release();
 		segmentedRightImage.release();
 	}
+
+	if (segmentOnly) return 0;
 
 	//Convert to GRAY images for matching
 	cvtColor(leftImage, leftImage, CV_BGR2GRAY);
@@ -179,20 +209,29 @@ int main(int argc, char** argv) {
 		label2Disparity = NULL;
 	}
 
-	//Cross checking
-	uchar * * crossCheckRight = malloc2DArray<uchar>(NUM_ROWS, NUM_COLS);
-	uchar * * crossCheckLeft = malloc2DArray<uchar>(NUM_ROWS, NUM_COLS);
-
 	//crossChecking(disparityLeftMap, disparityRightMap, crossCheckLeft, crossCheckRight);
 	//Store & show disparity Map
 	if (STORE_DISPARITY_MAP) {
-		Mat disparityRightMat = Mat(NUM_ROWS, NUM_COLS, CV_8UC1, disparityRightMap);
+		Mat disparityRightMat = Mat(NUM_ROWS, NUM_COLS, CV_8UC1);
+		Mat disparityLeftMat = Mat(NUM_ROWS, NUM_COLS, CV_8UC1);
+		for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
+			for (int idCol = 0; idCol < NUM_COLS; ++idCol){
+				disparityLeftMat.at<uchar>(idRow, idCol) = disparityLeftMap[idRow][idCol];
+				disparityRightMat.at<uchar>(idRow, idCol) = disparityRightMap[idRow][idCol];
+			}
+
+		}
 		storeMat(disparityRightMat, STORE_PATH + IMAGE_NAME + "-cutR.jpg", NULL);
 		disparityRightMat.release();
-		Mat disparityLeftMat = Mat(NUM_ROWS, NUM_COLS, CV_8UC1, disparityLeftMap);
 		storeMat(disparityLeftMat, STORE_PATH + IMAGE_NAME + "-cutL.jpg", NULL);
 		disparityLeftMat.release();
 	}
+
+	if (graphCutOnly) return 0;
+
+	//Cross checking
+	uchar * * crossCheckRight = malloc2DArray<uchar>(NUM_ROWS, NUM_COLS);
+	uchar * * crossCheckLeft = malloc2DArray<uchar>(NUM_ROWS, NUM_COLS);
 
 	//PlaneFitting
 	if (USE_SEGMENT){
@@ -209,11 +248,18 @@ int main(int argc, char** argv) {
 	release2DArray<uchar>(crossCheckRight, NUM_ROWS, NUM_COLS);
 
 	//Store & show disparity Map
-	if (STORE_DISPARITY_MAP) {
-		Mat disparityRightMat = Mat(NUM_ROWS, NUM_COLS, CV_8UC1, disparityRightMap);
+	if (STORE_PLANE_FITTING) {
+		Mat disparityRightMat = Mat(NUM_ROWS, NUM_COLS, CV_8UC1);
+		Mat disparityLeftMat = Mat(NUM_ROWS, NUM_COLS, CV_8UC1);
+		for (int idRow = 0; idRow < NUM_ROWS; ++idRow){
+			for (int idCol = 0; idCol < NUM_COLS; ++idCol){
+				disparityLeftMat.at<uchar>(idRow, idCol) = disparityLeftMap[idRow][idCol];
+				disparityRightMat.at<uchar>(idRow, idCol) = disparityRightMap[idRow][idCol];
+			}
+			
+		}
 		storeMat(disparityRightMat, STORE_PATH + IMAGE_NAME + "-fitR.jpg", NULL);
 		disparityRightMat.release();
-		Mat disparityLeftMat = Mat(NUM_ROWS, NUM_COLS, CV_8UC1, disparityLeftMap);
 		storeMat(disparityLeftMat, STORE_PATH + IMAGE_NAME + "-fitL.jpg", NULL);
 		disparityLeftMat.release();
 	}
@@ -228,9 +274,9 @@ int main(int argc, char** argv) {
 		disparityLeftMat.release();
 	}
 
+	if (planeFittingOnly) return 0;
+
 	//Background Masking
-	Mat leftBackground, rightBackground;
-	loadImages(LEFT_BACKGROUND, RIGHT_BACKGROUND, leftBackground, rightBackground);
 	loadImages(LEFT_IMAGE, RIGHT_IMAGE, leftImage, rightImage);
 
 	DisjointSetInt * sets1 = new DisjointSetInt(NUM_COLS * NUM_ROWS);
@@ -357,7 +403,7 @@ void readConfigFile(const string & CONFIG_FILE){
 	scanf("STORE_PATH"); cin.getline(temp, 256);
 	STORE_PATH = temp; trim(STORE_PATH);
 
-	printf("%d\n", DEFAULT_WIDTH);
+	/*printf("%d\n", DEFAULT_WIDTH);
 	printf("%d\n", DEFAULT_HEIGHT);
 	printf("%d\n", MIN_DISPARITY);
 	printf("%d\n", MAX_DISPARITY);
@@ -387,7 +433,7 @@ void readConfigFile(const string & CONFIG_FILE){
 	cout << "\"" << RIGHT_IMAGE << "\"" << endl;
 	cout << "\"" << LEFT_BACKGROUND << "\"" << endl;
 	cout << "\"" << RIGHT_BACKGROUND << "\"" << endl;
-	cout << "\"" << STORE_PATH << "\"" << endl;
+	cout << "\"" << STORE_PATH << "\"" << endl;*/
 }
 
 template<class T>
